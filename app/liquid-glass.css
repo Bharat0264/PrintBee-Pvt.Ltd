@@ -30,7 +30,18 @@ input[type=checkbox],input[type=radio] { accent-color:#35684a; width:20px; heigh
 .glass-nav { position:relative; isolation:isolate; }.glass-nav-indicator { position:absolute; left:0; top:0; z-index:-1; background:#e7eedf99; border:1px solid #ffffffb3; border-radius:13px; pointer-events:none; transition:transform var(--glass-normal) var(--glass-spring),width var(--glass-normal),height var(--glass-normal); }
 .project-detail-nav { max-width:1200px; padding:30px 28px 0; margin:auto; }.project-detail-nav .project-nav { margin-bottom:0; }
 .price-list { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); background:none; border:0; box-shadow:none; overflow:visible; }.price-list>article { flex-wrap:wrap; gap:14px; min-height:180px; }.price-list>article>div { min-width:0; flex:1 1 110px; }.price-list>article>strong { flex-basis:100%; }.gen-z-meme { background:#ffffffa6; border:1px solid #fff; border-left:3px solid #d5b24d; border-radius:12px; }
-@media(max-width:540px) { .price-list { gap:12px; }.price-list>article { padding:18px; }.project-detail-nav { padding:16px 16px 0; } }
+@media(max-width:540px) {
+  .price-list { gap:12px; }
+  /* Each card becomes a two-row layout on phones, keeping the title and
+     calculated price in separate grid cells instead of competing for width. */
+  .price-list>article { grid-template-columns:38px minmax(0,1fr); grid-template-rows:auto auto; gap:7px 10px; min-height:176px; padding:18px; align-content:center; }
+  .price-list>article>.mode-icon { grid-row:1 / span 2; }
+  .price-list>article>div { min-width:0; }
+  .price-list>article h3 { font-size:13px; line-height:1.3; }
+  .price-list>article>strong { grid-column:2; font-size:24px; line-height:1.05; white-space:nowrap; }
+  .price-list>article>strong small { font-size:10px; }
+  .project-detail-nav { padding:16px 16px 0; }
+}
 .glass-card,.glass-panel,.order-card,.cart-section,.points-guide,.store-selection-card,.projects-grid>a,.market-grid>article,.project-form,.project-detail,.price-list>article,.projects-home-cta,.policy-content { background:var(--glass-mid); border:1px solid var(--glass-edge); border-radius:var(--glass-radius); box-shadow:var(--glass-shadow); }
 .glass-card,.glass-panel { padding:var(--glass-space); }
 .glass-button,.primary-cta,.estimate button,.save-button,.cart-summary button,.project-buy { position:relative; display:inline-flex; align-items:center; justify-content:center; gap:10px; padding:14px 22px; border:1px solid #e7c358; border-radius:16px; background:linear-gradient(170deg,#ffdf71,#ffd447); color:#293421; font-size:14px; font-weight:750; box-shadow:inset 0 1px 0 #fff8,0 5px 12px #aa892b14; overflow:hidden; text-decoration:none; }
