@@ -1,5 +1,6 @@
 "use client";
 import { lazy, Suspense, useEffect, useRef, useState } from 'react';
+import { AnimatedCounter, GlassPresence } from './LiquidGlass';
 
 const PrintStudio = lazy(() => import('./PrintStudio'));
 export const motion = { fast: 160, normal: 260, success: 520, easing: 'cubic-bezier(.2,.7,.2,1)' };
@@ -38,7 +39,7 @@ export function CustomerMotion({ hidden = false }: { hidden?: boolean }) {
         const y = Math.min(innerHeight - 100, Math.max(60, from.top + 80));
         Object.assign(paper.style, { position:'fixed', left:`${x}px`, top:`${y}px`, zIndex:'50', pointerEvents:'none', fontSize:'28px', color:'#386841' });
         document.body.append(paper);
-        const animation = paper.animate([{ transform:'translate(0,0) scale(1)', opacity:1 }, { transform:`translate(${to.left-x+20}px,${to.top-y}px) scale(.25)`, opacity:0 }], { duration:motion.success, easing:motion.easing });
+        const animation = paper.animate([{ transform:'translate(0,0) scale(1)', opacity:1 }, { transform:'translate(14px,-28px) scale(.75)', opacity:0 }], { duration:motion.normal, easing:motion.easing });
         animations.add(animation); animation.onfinish = animation.oncancel = () => { paper.remove(); animations.delete(animation); };
       }
     };
@@ -57,10 +58,10 @@ export function AnimatedPrice({ value }: { value: number }) {
     const animation = ref.current.animate([{ opacity:.5, transform:'translateY(3px)' }, { opacity:1, transform:'translateY(0)' }], { duration:motion.fast });
     return () => animation.cancel();
   }, [value]);
-  return <strong ref={ref} aria-live="polite" aria-atomic="true">{new Intl.NumberFormat('en-IN', { style:'currency', currency:'INR' }).format(value)}</strong>;
+  return <strong ref={ref} aria-live="polite" aria-atomic="true"><AnimatedCounter value={value} currency /></strong>;
 }
 
 export function StudioLauncher() {
   const [open, setOpen] = useState(false);
-  return <><button className="studio-launch" onClick={() => setOpen(true)}>Explore the PrintBee mini studio ↗</button>{open && <Suspense fallback={<div className="modal-backdrop"><section className="studio-modal" role="dialog" aria-modal="true" aria-label="Opening PrintBee studio"><button aria-label="Close studio" onClick={() => setOpen(false)}>Close</button><p>Opening the print studio…</p></section></div>}><PrintStudio close={() => setOpen(false)} /></Suspense>}</>;
+  return <><button className="studio-launch" onClick={() => setOpen(true)}>Explore the PrintBee mini studio ↗</button><GlassPresence>{open && <Suspense fallback={<div className="modal-backdrop"><section className="studio-modal" role="dialog" aria-modal="true" aria-label="Opening PrintBee studio"><button aria-label="Close studio" onClick={() => setOpen(false)}>Close</button><p>Opening the print studio…</p></section></div>}><PrintStudio close={() => setOpen(false)} /></Suspense>}</GlassPresence></>;
 }

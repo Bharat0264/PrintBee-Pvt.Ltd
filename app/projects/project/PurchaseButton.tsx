@@ -1,4 +1,34 @@
 "use client";
-import { useState } from "react";
-declare global { interface Window { Razorpay?: any } }
-export default function PurchaseButton({projectId}:{projectId:string}){const [message,setMessage]=useState("");const buy=async()=>{const r=await fetch("/api/projects/purchase",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({projectId})}),d=await r.json();if(!r.ok)return setMessage(d.error??"Could not start payment");if(!window.Razorpay){const s=document.createElement("script");s.src="https://checkout.razorpay.com/v1/checkout.js";await new Promise((ok,no)=>{s.onload=ok;s.onerror=no;document.head.appendChild(s)})}new window.Razorpay({key:d.keyId,amount:d.amount,currency:"INR",name:"PrintBee Projects",description:`${d.title} · ${d.projectCode}`,order_id:d.razorpayOrderId,handler:async(x:any)=>{const v=await fetch("/api/projects/purchase/verify",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({orderId:d.orderId,...x})}),out=await v.json();if(!v.ok)return setMessage(out.error??"Verification failed");const text=encodeURIComponent(`Hello PrintBee, I bought project ${d.projectCode} (${d.title}). Payment ID: ${x.razorpay_payment_id}. Please share my documents.`);window.location.href=`https://wa.me/919347541419?text=${text}`}}).open()};return <><p className="project-fee-note">Buyer pays 5% platform fee plus 2.36% payment handling on that amount. The seller receives 95% of the listed value.</p><button className="project-buy" onClick={buy}>Buy securely</button>{message&&<p>{message}</p>}</>}
+import { useRef, useState } from "react";
+import { ActionFeedback, GlassButton } from "../../components/LiquidGlass";
+type PaymentResult = { razorpay_payment_id: string; razorpay_order_id: string; razorpay_signature: string };
+type RazorpayOptions = { key: string; amount: number; currency: string; name: string; description: string; order_id: string; handler: (result: PaymentResult) => Promise<void>; modal: { ondismiss: () => void } };
+declare global { interface Window { Razorpay?: new (options: RazorpayOptions) => { open: () => void } } }
+export default function PurchaseButton({ projectId }: { projectId: string }) {
+  const [message, setMessage] = useState(""), [busy, setBusy] = useState(false);
+  const lock = useRef(false);
+  const release = () => { lock.current = false; setBusy(false); };
+  const buy = async () => {
+    if (lock.current) return;
+    lock.current = true; setBusy(true); setMessage("");
+    try {
+      const response = await fetch("/api/projects/purchase", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ projectId }) }), data = await response.json();
+      if (!response.ok) throw new Error(data.error ?? "Could not start payment");
+      if (!window.Razorpay) {
+        const script = document.createElement("script"); script.src = "https://checkout.razorpay.com/v1/checkout.js";
+        await new Promise<void>((resolve, reject) => { script.onload = () => resolve(); script.onerror = () => reject(new Error("Checkout could not load. Please try again.")); document.head.appendChild(script); });
+      }
+      if (!window.Razorpay) throw new Error("Checkout is unavailable.");
+      new window.Razorpay({ key: data.keyId, amount: data.amount, currency: "INR", name: "PrintBee Projects", description: `${data.title} · ${data.projectCode}`, order_id: data.razorpayOrderId, modal: { ondismiss: release }, handler: async result => {
+        try {
+          const verification = await fetch("/api/projects/purchase/verify", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ orderId: data.orderId, ...result }) }), outcome = await verification.json();
+          if (!verification.ok) throw new Error(outcome.error ?? "Verification failed");
+          const text = encodeURIComponent(`Hello PrintBee, I bought project ${data.projectCode} (${data.title}). Payment ID: ${result.razorpay_payment_id}. Please share my documents.`);
+          window.location.href = `https://wa.me/919347541419?text=${text}`;
+        } catch (error) { setMessage(error instanceof Error ? error.message : "Please check your payment status before trying again."); }
+        finally { release(); }
+      } }).open();
+    } catch (error) { setMessage(error instanceof Error ? error.message : "Could not start payment"); release(); }
+  };
+  return <><p className="project-fee-note">Buyer pays 5% platform fee plus 2.36% payment handling on that amount. The seller receives 95% of the listed value.</p><GlassButton className="project-buy" busy={busy} onClick={buy}>{busy ? "Payment in progress…" : "Buy securely →"}</GlassButton>{message && <ActionFeedback tone="error">{message}</ActionFeedback>}</>;
+}

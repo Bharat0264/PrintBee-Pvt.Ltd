@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState, type CSSProperties } from "react";
 
 /** CSS-only dimensional mascot: no canvas, animation loop or graphics dependency. */
 export function BeeMascot({ celebrate = false }: { celebrate?: boolean }) {
@@ -20,7 +20,8 @@ export function DocumentPreview({ pages, copies, colour, doubleSided, file }: { 
 }
 
 export function MobileNavigation({ orders, profile, cartCount }: { orders: () => void; profile: () => void; cartCount: number }) {
-  return <nav className="mobile-dock" aria-label="Quick navigation"><a href="#top"><span aria-hidden="true">⌂</span>Home</a><button onClick={orders}><span aria-hidden="true">▤</span>Orders</button><a className="dock-upload" href="#upload"><span aria-hidden="true">↑</span>Upload</a><a href="#cart"><span aria-hidden="true">▱</span>Cart{cartCount > 0 && <b>{cartCount}</b>}</a><button onClick={profile}><span aria-hidden="true">☺</span>Account</button></nav>;
+  const [active, setActive] = useState(0);
+  return <nav className="mobile-dock" style={{ "--dock-index": active } as CSSProperties} aria-label="Quick navigation"><i className="dock-indicator" aria-hidden="true" /><a href="#top" aria-current={active === 0 ? "location" : undefined} onClick={() => setActive(0)}><span aria-hidden="true">⌂</span>Home</a><button aria-pressed={active === 1} onClick={() => { setActive(1); orders(); }}><span aria-hidden="true">▤</span>Orders</button><a className="dock-upload" href="#upload" aria-current={active === 2 ? "location" : undefined} onClick={() => setActive(2)}><span aria-hidden="true">↑</span>Upload</a><a href="#cart" aria-current={active === 3 ? "location" : undefined} onClick={() => setActive(3)}><span aria-hidden="true">▱</span>Cart{cartCount > 0 && <b key={cartCount}>{cartCount}</b>}</a><button aria-pressed={active === 4} onClick={() => { setActive(4); profile(); }}><span aria-hidden="true">☺</span>Account</button></nav>;
 }
 
 /** Keyboard containment and focus restoration for existing conditional dialogs. */
@@ -29,8 +30,8 @@ export function DialogAccessibility() {
     let active: HTMLElement | null = null;
     let previous: HTMLElement | null = null;
     const sync = () => {
-      const dialogs = document.querySelectorAll<HTMLElement>('[role="dialog"]');
-      const next = dialogs.item(dialogs.length - 1);
+      const dialogs = [...document.querySelectorAll<HTMLElement>('[role="dialog"]')].filter(dialog => !dialog.closest('[inert]'));
+      const next = dialogs[dialogs.length - 1] ?? null;
       if (next === active) return;
       if (next) { previous = document.activeElement as HTMLElement; active = next; active.tabIndex = -1; active.focus(); }
       else { active = null; if (previous?.isConnected) previous.focus(); }
@@ -45,7 +46,7 @@ export function DialogAccessibility() {
       if (event.shiftKey && (document.activeElement === first || document.activeElement === active)) { event.preventDefault(); last.focus(); }
       else if (!event.shiftKey && (document.activeElement === last || document.activeElement === active)) { event.preventDefault(); first.focus(); }
     };
-    const observer = new MutationObserver(sync); observer.observe(document.body, { childList: true, subtree: true });
+    const observer = new MutationObserver(sync); observer.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['inert', 'role'] });
     document.addEventListener("keydown", key); sync();
     return () => { observer.disconnect(); document.removeEventListener("keydown", key); };
   }, []);

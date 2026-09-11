@@ -2,6 +2,8 @@ import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import "./experience.css";
 import "./order-motion.css";
+import "./liquid-glass.css";
+import { FloatingBackground, GlassInteractionSystem, PageTransition } from "./components/LiquidGlass";
 
 
 export const metadata: Metadata = {
@@ -34,7 +36,9 @@ export default function RootLayout({
       <body
         className="antialiased"
       >
-        {children}
+        <FloatingBackground />
+        <GlassInteractionSystem />
+        <PageTransition>{children}</PageTransition>
       </body>
     </html>
   );

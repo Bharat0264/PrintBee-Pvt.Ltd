@@ -1,5 +1,6 @@
 "use client";
 
+import { AnimatedCounter, CheckoutProgress, GlassPresence, GlassNav, LoadingAnimation, SuccessAnimation, animateCartRemoval } from "./components/LiquidGlass";
 import { ChangeEvent, useEffect, useMemo, useRef, useState } from "react";
 import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
 import { BeeMascot, DocumentPreview, MobileNavigation, DialogAccessibility } from "./components/PrintBeeExperience";
@@ -406,6 +407,8 @@ export default function PrintBeeApp({ viewer, appwriteConfigured }: { viewer: Vi
   const [orderError, setOrderError] = useState("");
   const [orderResult, setOrderResult] = useState<{ id: string; orderNumber: string; deliveryCode?: string | null; locationName: string; totalPaise: number; lateNightFeePaise?: number; paid: boolean; paymentMode?: string } | null>(null);
   const [paymentProcessing, setPaymentProcessing] = useState(false);
+  const orderSubmissionLock = useRef(false);
+  const paymentDialogLock = useRef(false);
   const [newLocation, setNewLocation] = useState("");
   const [agentEmail, setAgentEmail] = useState("");
   const [adminMessage, setAdminMessage] = useState("");
@@ -859,7 +862,9 @@ export default function PrintBeeApp({ viewer, appwriteConfigured }: { viewer: Vi
       const data = await response.json().catch(() => ({}));
       return setUploadError(data.error ?? "This item could not be removed. Please try again.");
     }
+    const reposition = await animateCartRemoval(item.id);
     setCart((items) => items.filter((current) => current.id !== item.id));
+    reposition();
     customerFeedback('cart-removed');
   };
 
@@ -1028,7 +1033,8 @@ export default function PrintBeeApp({ viewer, appwriteConfigured }: { viewer: Vi
   };
 
   const placeOrder = async () => {
-    if (paymentProcessing) return;
+    if (paymentProcessing || orderSubmissionLock.current || paymentDialogLock.current) return;
+    orderSubmissionLock.current = true;
     setPaymentProcessing(true);
     setOrderError("");
     try {
@@ -1043,10 +1049,14 @@ export default function PrintBeeApp({ viewer, appwriteConfigured }: { viewer: Vi
       const pendingResult = { ...data, paid: false };
       setOrderResult(pendingResult);
       await startRazorpayPayment(pendingResult);
-    } finally { setPaymentProcessing(false); }
+    } catch (error) {
+      setOrderError(error instanceof Error ? error.message : "Checkout could not be prepared. Please check your orders before trying again.");
+    } finally { orderSubmissionLock.current = false; if (!paymentDialogLock.current) setPaymentProcessing(false); }
   };
 
   const startRazorpayPayment = async (order: { id: string; orderNumber?: string; totalPaise?: number }) => {
+    if (paymentDialogLock.current) return;
+    paymentDialogLock.current = true;
     setOrderError("");
     setPaymentProcessing(true);
     try {
@@ -1074,6 +1084,7 @@ export default function PrintBeeApp({ viewer, appwriteConfigured }: { viewer: Vi
         prefill: { name: customerName, email: viewer?.email, contact: mobileNumber },
         theme: { color: "#e0ad00" },
         handler: async (result: RazorpayResult) => {
+          try {
           const verifyResponse = await fetch("/api/payments/razorpay/verify", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ orderId: order.id, ...result }) });
           const verified = await verifyResponse.json();
           if (!verifyResponse.ok) return setOrderError(verified.error ?? "Payment verification failed");
@@ -1083,13 +1094,16 @@ export default function PrintBeeApp({ viewer, appwriteConfigured }: { viewer: Vi
           if ((order as any).pointsRedeemed) setPointsBalance((current) => Math.max(0, current - Number((order as any).pointsRedeemed)));
           customerFeedback('payment-verified');
           await checkCustomerNotifications();
+          } catch (error) {
+            setOrderError(error instanceof Error ? error.message : "Payment verification could not be completed. Please check your orders.");
+          } finally { paymentDialogLock.current = false; setPaymentProcessing(false); }
         },
-        modal: { ondismiss: () => setPaymentProcessing(false) },
+        modal: { ondismiss: () => { paymentDialogLock.current = false; setPaymentProcessing(false); } },
       });
       checkout.open();
     } catch (error) {
       setOrderError(error instanceof Error ? error.message : "Payment could not be started");
-    } finally {
+      paymentDialogLock.current = false;
       setPaymentProcessing(false);
     }
   };
@@ -1781,7 +1795,7 @@ export default function PrintBeeApp({ viewer, appwriteConfigured }: { viewer: Vi
       {viewer && <ActiveOrderWidget key={viewer.email} email={viewer.email} orders={myOrders} error={customerOrderError} refresh={refreshCustomerOrders} details={() => void openMyOrders()} hidden={adminOpen || loginOpen || checkoutOpen || paymentProcessing || myOrdersOpen || walletOpen || profileOpen || franchiseApplyOpen || Boolean(editingCartItem) || Boolean(feedbackOrder) || Boolean(expandedScanner) || notificationPromptOpen || Boolean(notificationToast)} />}
       <DialogAccessibility />
       <a className="skip-link" href="#upload">Skip to upload</a>
-      {notificationPromptOpen && (
+      <GlassPresence>{notificationPromptOpen && (
         <div className="modal-backdrop notification-permission-backdrop" role="presentation">
           <section className="notification-permission-modal" role="dialog" aria-modal="true" aria-labelledby="notification-permission-title">
             <img src="/printbee-logo.png" width={76} height={76} alt="PrintBee" />
@@ -1791,14 +1805,14 @@ export default function PrintBeeApp({ viewer, appwriteConfigured }: { viewer: Vi
             <button className="notification-later" onClick={() => setNotificationPromptOpen(false)}>Not now</button>
           </section>
         </div>
-      )}
+      )}</GlassPresence>
       {notificationToast && <div className="notification-toast" role="status" aria-live="assertive"><span>🔔</span><div><strong>{notificationToast.title}</strong><p>{notificationToast.body}</p></div><button onClick={() => setNotificationToast(null)} aria-label="Dismiss notification">×</button></div>}
       <header className="topbar">
         <a className="brand" href="#top" aria-label="PrintBee home">
           <img src="/printbee-logo.png" width={74} height={74} alt="PrintBee" />
           <span><strong>Print<span>Bee</span></strong><small>Upload. Print. Delivered.</small></span>
         </a>
-        <nav aria-label="Main navigation">
+        <GlassNav aria-label="Main navigation">
           <a href="#how">How it works</a>
           <a href="#points">Earn points</a>
           <a href="#pricing">Pricing</a>
@@ -1806,14 +1820,14 @@ export default function PrintBeeApp({ viewer, appwriteConfigured }: { viewer: Vi
           {selectedStoreId && !viewer?.isAdmin && <button className="store-switch-button" onClick={() => { window.localStorage.removeItem("printbee-selected-store"); setSelectedStoreId(null); }}>Change store</button>}
           {viewer?.isAdmin && <button className="admin-link" onClick={() => openAdminDashboard(1)}>Admin dashboard</button>}
           {role === "AGENT" && approvalStatus === "APPROVED" && <button className="admin-link" onClick={() => switchLoginMode("PARTNER")}>Partner portal</button>}
-          {viewer && <button className="home-wallet-button" onClick={() => { setWalletOpen(true); setWalletMessage(""); }} aria-label={`Wallet balance ${pointsBalance} points`}><span>◉</span><b>{pointsBalance}</b></button>}
+          {viewer && <button className="home-wallet-button" onClick={() => { setWalletOpen(true); setWalletMessage(""); }} aria-label={`Wallet balance ${pointsBalance} points`}><span>◉</span><b><AnimatedCounter value={pointsBalance} onceInView /></b></button>}
           {viewer && <button className="admin-link" onClick={openMyOrders}>My orders</button>}
           {viewer ? (
             <button className="login-link" onClick={signOut} title={viewer.email}>Sign out</button>
           ) : (
             <><button className="login-link" onClick={() => setLoginOpen(true)}>Sign in</button><button className="login-link" onClick={() => { setLoginMode("PARTNER"); window.localStorage.setItem("printbee-login-mode", "PARTNER"); setLoginOpen(true); }}>Delivery partner</button></>
           )}
-        </nav>
+        </GlassNav>
       </header>
 
       <section className="hero" id="top">
@@ -1844,9 +1858,9 @@ export default function PrintBeeApp({ viewer, appwriteConfigured }: { viewer: Vi
           {!isPlagiarismService && <button type="button" className="plagiarism-start" onClick={() => { setServiceId(PLAGIARISM_SERVICE_ID); setFileName(""); setSelectedFile(null); setBatchFiles([]); setSelectedAddonIds([]); setUploadError(""); }}><span>NEW</span><div><strong>Plagiarism report</strong><small>Upload your paper or report · ₹175 · WhatsApp report within 24 hours</small></div><b>Start →</b></button>}
           {isPlagiarismService && <div className="plagiarism-flow-heading"><div><strong>Plagiarism report</strong><small>Online service · ₹175 · no delivery or printing charges</small></div><button type="button" className="plagiarism-back-button" onClick={() => { setServiceId("document-printing"); setFileName(""); setSelectedFile(null); setBatchFiles([]); }}>← Go back to printing</button></div>}
 
-          <label className={`upload-zone ${fileName ? "has-file" : ""}`} onDragOver={(event) => event.preventDefault()} onDrop={(event) => { event.preventDefault(); if (!countingPages) void handleFile({ target: { files: event.dataTransfer.files, value: "" } } as ChangeEvent<HTMLInputElement>); }}>
+          <label className={`upload-zone ${fileName ? "has-file" : ""} ${countingPages ? "is-processing" : ""}`} aria-busy={countingPages} onDragOver={(event) => { event.preventDefault(); event.currentTarget.classList.add("is-dragging"); }} onDragLeave={(event) => { if (!event.currentTarget.contains(event.relatedTarget as Node)) event.currentTarget.classList.remove("is-dragging"); }} onDrop={(event) => { event.preventDefault(); event.currentTarget.classList.remove("is-dragging"); if (!countingPages) void handleFile({ target: { files: event.dataTransfer.files, value: "" } } as ChangeEvent<HTMLInputElement>); }}>
             <input type="file" multiple accept=".pdf,.jpg,.jpeg,.png,.webp,.heic,application/pdf,image/jpeg,image/png,image/webp,image/heic,image/heif" onChange={handleFile} />
-            <span className="upload-icon">{countingPages ? "…" : fileName ? "✓" : "↑"}</span>
+            <span className="upload-icon">{countingPages ? <LoadingAnimation compact /> : fileName ? "✓" : "↑"}</span>
             <strong>{fileName ? "Document ready" : "Upload Files"}</strong>
             {fileName && <small className="original-file-name">Original: {fileName}</small>}
             <small>{uploadProgress !== null ? `Uploading… ${uploadProgress}%` : countingPages ? "Checking file…" : fileName ? `${pages} ${pages === 1 ? "page" : "pages"} detected${fileQueue.length ? ` · ${fileQueue.length} more queued` : ""}` : "Select one or more PDF or image files"}</small>
@@ -1873,7 +1887,7 @@ export default function PrintBeeApp({ viewer, appwriteConfigured }: { viewer: Vi
               <p className="file-size">{formatFileSize(item.file.size)} · {item.fileName}</p>
               <div className="batch-progress" aria-label={`File ${batchIndex + 1} of ${batchFiles.length}`}>{batchFiles.map((_, index) => <button type="button" key={index} className={index === batchIndex ? "active" : ""} onClick={() => setBatchIndex(index)} aria-label={`Review file ${index + 1}`} />)}</div>
               <label className="add-more-files"><input type="file" multiple accept=".pdf,.jpg,.jpeg,.png,.webp,.heic,application/pdf,image/jpeg,image/png,image/webp,image/heic,image/heif" onChange={handleFile} />+ Add more files</label>
-              <article className="batch-file-card" onTouchStart={(event) => setSwipeStartX(event.changedTouches[0]?.clientX ?? null)} onTouchEnd={(event) => { const endX = event.changedTouches[0]?.clientX; if (swipeStartX !== null && endX !== undefined && Math.abs(endX - swipeStartX) > 45) moveBatch(endX < swipeStartX ? 1 : -1); setSwipeStartX(null); }}>
+              <article className="batch-file-card" key={item.reference} onTouchStart={(event) => setSwipeStartX(event.changedTouches[0]?.clientX ?? null)} onTouchEnd={(event) => { const endX = event.changedTouches[0]?.clientX; if (swipeStartX !== null && endX !== undefined && Math.abs(endX - swipeStartX) > 45) moveBatch(endX < swipeStartX ? 1 : -1); setSwipeStartX(null); }}>
                 <div className="batch-file-nav"><button type="button" onClick={() => moveBatch(-1)} disabled={batchIndex === 0} aria-label="Previous file">←</button><span>File {batchIndex + 1} of {batchFiles.length}</span><button type="button" onClick={() => moveBatch(1)} disabled={batchIndex === batchFiles.length - 1} aria-label="Next file">→</button></div>
                 <div className="batch-file-name"><span>{item.fileType === "PDF" ? "PDF" : "IMG"}</span><div><strong>{item.reference}</strong><small className="original-file-name">Original: {item.fileName}</small><small>{item.pages} {item.pages === 1 ? "page" : "pages"}</small></div><button type="button" className="remove-item" onClick={removeCurrent} aria-label={`Remove ${item.fileName}`}>×</button></div>
                 <div className="batch-file-fields"><label>Service<select value={item.serviceId} onChange={(event) => updateBatchFile(batchIndex, { serviceId: event.target.value })}>{printServices.filter((service) => service.id !== PLAGIARISM_SERVICE_ID).map((service) => <option key={service.id} value={service.id}>{service.name}</option>)}</select></label><label>Print style<select value={item.mode} onChange={(event) => updateBatchFile(batchIndex, { mode: event.target.value as PrintMode })}>{options.map((option) => <option key={option.id} value={option.id}>{option.title}</option>)}</select></label><div><small>Copies</small><div className="quantity-stepper"><button type="button" disabled={item.copies <= 1} onClick={() => updateBatchFile(batchIndex, { copies: Math.max(1, item.copies - 1) })}>−</button><output>{item.copies}</output><button type="button" onClick={() => updateBatchFile(batchIndex, { copies: item.copies + 1 })}>+</button></div></div></div>
@@ -1951,7 +1965,7 @@ export default function PrintBeeApp({ viewer, appwriteConfigured }: { viewer: Vi
           </div>
 
           <div className="estimate">
-            <div><small>Estimated print total</small><strong>{inr.format(total)}</strong></div>
+            <div><small>Estimated print total</small><AnimatedPrice value={total} /></div>
             <button disabled={!fileName || countingPages || (usesMixedPagePricing && !colourPagesValid) || ((Boolean(printServices.find((service) => service.id === serviceId)?.is_binding) || isPlagiarismService) && whatsappNumber.length !== 10)} onClick={addToCart}>Add &amp; proceed to checkout <span>→</span></button>
           </div>
           <p className="estimate-note">{usesMixedPagePricing ? `${bwPageCount} B&W + ${colourPageCount} colour pages × ${copies} ${copies === 1 ? "copy" : "copies"} · ${side === "double" ? "Double sided (pages ÷ 2)" : "Single sided"}` : `${pages}${side === "double" ? " ÷ 2" : ""} pages × ${copies} ${copies === 1 ? "copy" : "copies"} × ${inr.format(prices[mode])} · ${selected.title}`}{servicePrice > 0 ? ` + ${inr.format(servicePrice)} ${selectedService?.name} charge` : ""}{addonsTotal > 0 ? ` + ${inr.format(addonsTotal)} add-ons` : ""}</p>
@@ -1967,7 +1981,7 @@ export default function PrintBeeApp({ viewer, appwriteConfigured }: { viewer: Vi
       <section className="cart-section" id="cart" aria-labelledby="cart-title">
         <div className="cart-heading">
           <div><div className="eyebrow"><span>●</span> Your cart</div><h2 id="cart-title">{cart.length ? `${cart.length} ${cart.length === 1 ? "item" : "items"} ready` : "Your cart is empty"}</h2></div>
-          {cart.length > 0 && <strong>{inr.format(cartTotal)}</strong>}
+          {cart.length > 0 && <AnimatedPrice value={cartTotal} />}
         </div>
         {cart.length === 0 ? (
           <div className="empty-cart"><BeeMascot /><strong>A little empty. A lot of possibility.</strong><p>Add your notes, assignments or an add-on to get started.</p><a className="primary-cta" href="#upload">Add something to print ↑</a></div>
@@ -1977,7 +1991,7 @@ export default function PrintBeeApp({ viewer, appwriteConfigured }: { viewer: Vi
               {cart.map((item) => {
                 const itemOption = options.find((option) => option.id === item.mode);
                 return (
-                  <article className="cart-item" key={item.id}>
+                  <article className="cart-item" key={item.id} data-cart-id={item.id}>
                     <div className="file-badge">{item.kind === "ADDON" ? "ADD" : item.fileType === "PDF" ? "PDF" : item.fileType === "IMAGE" ? "IMG" : "DOC"}</div>
                     {item.kind === "ADDON" ? <div className="cart-file"><h3>{item.fileName}</h3><p>Add-on only · No printout required</p><small>Fixed product price</small></div> : <div className="cart-file"><h3>{item.displayReference ?? item.fileName}</h3><small className="original-file-name">Original: {item.fileName}</small><p>{item.serviceName} · {item.pages} {item.pages === 1 ? "page" : "pages"} · A4 · {itemOption?.title ?? printModeLabel(item.mode)} · {item.copies} {item.copies === 1 ? "copy" : "copies"}</p>{item.colourPageNumbers !== undefined && <p>Colour pages: {item.colourPageNumbers} · B&amp;W pages: {item.bwPageNumbers ?? `remaining ${item.pages - (item.colourPages ?? 0)} pages`}</p>}{item.addons?.length ? <p>Add-ons: {item.addons.map((addon) => addon.name).join(", ")}</p> : null}{item.printInstructions && <p>{item.printInstructions}{item.whatsappNumber ? ` · WhatsApp ${item.whatsappNumber}` : ""}</p>}<small>{item.colourPageNumbers !== undefined ? `${item.pages - (item.colourPages ?? 0)} B&W + ${item.colourPages ?? 0} colour × ${item.copies}` : `${item.pages}${item.mode.endsWith("double") ? " ÷ 2" : ""} × ${item.copies} × ${inr.format(item.unitPrice)}`}{item.servicePrice > 0 ? ` + ${inr.format(item.servicePrice)} service charge` : ""}{item.addonsTotal ? ` + ${inr.format(item.addonsTotal)} add-ons` : ""}</small></div>}
                     <strong>{inr.format(item.total)}</strong>
@@ -1988,7 +2002,7 @@ export default function PrintBeeApp({ viewer, appwriteConfigured }: { viewer: Vi
               })}
             </div>
             <div className="cart-summary">
-              <div><span>Printing subtotal</span><strong>{inr.format(cartTotal)}</strong></div>
+              <div><span>Printing subtotal</span><AnimatedPrice value={cartTotal} /></div>
               <button onClick={openCheckout}>Proceed to checkout →</button>
             </div>
           </>
@@ -2048,9 +2062,9 @@ export default function PrintBeeApp({ viewer, appwriteConfigured }: { viewer: Vi
         <p className="footer-copyright">© 2026 PrintBee · Local A4 printing made easy.</p>
       </footer>
       {!viewer?.isAdmin && <MobileNavigation orders={() => { if (viewer) void openMyOrders(); else setLoginOpen(true); }} profile={() => { if (viewer) setProfileOpen(true); else setLoginOpen(true); }} cartCount={cart.length} />}
-      {profileOpen && <div className="modal-backdrop" onMouseDown={() => setProfileOpen(false)}><section className="login-modal account-panel" role="dialog" aria-modal="true" aria-labelledby="account-title" onMouseDown={event => event.stopPropagation()}><button className="close" aria-label="Close" onClick={() => setProfileOpen(false)}>×</button><BeeMascot /><h2 id="account-title">Your PrintBee</h2><p>{viewer?.email}</p><ActiveOrderLinks orders={myOrders} open={() => { setProfileOpen(false); void openMyOrders(); }} /><div className="account-actions"><button onClick={() => { setProfileOpen(false); void openMyOrders(); }}>Orders & tracking →</button><button onClick={() => { setProfileOpen(false); setWalletOpen(true); }}>Wallet · {pointsBalance} points →</button><a href="/contact">Help & contact →</a><a href="/privacy-policy">Privacy & your documents →</a><button onClick={signOut}>Sign out</button></div></section></div>}
+      <GlassPresence>{profileOpen && <div className="modal-backdrop" onMouseDown={() => setProfileOpen(false)}><section className="login-modal account-panel" role="dialog" aria-modal="true" aria-labelledby="account-title" onMouseDown={event => event.stopPropagation()}><button className="close" aria-label="Close" onClick={() => setProfileOpen(false)}>×</button><BeeMascot /><h2 id="account-title">Your PrintBee</h2><p>{viewer?.email}</p><ActiveOrderLinks orders={myOrders} open={() => { setProfileOpen(false); void openMyOrders(); }} /><div className="account-actions"><button onClick={() => { setProfileOpen(false); void openMyOrders(); }}>Orders & tracking →</button><button onClick={() => { setProfileOpen(false); setWalletOpen(true); }}>Wallet · {pointsBalance} points →</button><a href="/contact">Help & contact →</a><a href="/privacy-policy">Privacy & your documents →</a><button onClick={signOut}>Sign out</button></div></section></div>}</GlassPresence>
 
-      {adminOpen && (
+      <GlassPresence>{adminOpen && (
         <div className="modal-backdrop" role="presentation" onMouseDown={() => { void closeAdminDashboard(); }}>
           <section className="admin-modal admin-portal" role="dialog" aria-modal="true" aria-labelledby="admin-title" onMouseDown={(e) => e.stopPropagation()}>
             <aside className="admin-sidebar">
@@ -2309,14 +2323,14 @@ export default function PrintBeeApp({ viewer, appwriteConfigured }: { viewer: Vi
             </div>
           </section>
         </div>
-      )}
+      )}</GlassPresence>
 
-      {checkoutOpen && (
+      <GlassPresence>{checkoutOpen && (
         <div className="modal-backdrop" role="presentation" onMouseDown={() => setCheckoutOpen(false)}>
           <section className="checkout-modal" role="dialog" aria-modal="true" aria-labelledby="checkout-title" onMouseDown={(e) => e.stopPropagation()}>
             <button className="close" onClick={() => setCheckoutOpen(false)} aria-label="Close">×</button>
             {orderResult ? (
-              <div className="order-success">
+              <div className="order-success"><CheckoutProgress step={orderResult.paid ? 3 : 2} />{orderResult.paid && <SuccessAnimation />}
                 {orderResult.paid && <><BeeMascot celebrate /><p>Amount paid <strong>{inr.format(orderResult.totalPaise / 100)}</strong></p><button className="primary-cta" onClick={() => { setCheckoutOpen(false); void openMyOrders(); }}>Track Order →</button></>}
                 <span>{orderResult.paid ? "✓" : "₹"}</span><h2>{orderResult.paid ? "Order placed" : "Complete payment"}</h2>
                 <p>{orderResult.paid ? <>Order <strong>{orderResult.orderNumber}</strong> · {orderResult.locationName}</> : <>Your order number will be created after successful payment · {orderResult.locationName}</>}</p>
@@ -2330,7 +2344,7 @@ export default function PrintBeeApp({ viewer, appwriteConfigured }: { viewer: Vi
               </div>
             ) : (
               <>
-                <div className="admin-badge">CHECKOUT</div>
+                <CheckoutProgress step={paymentProcessing ? 2 : customerName.trim() && mobileNumber.length === 10 ? 1 : 0} /><div className="admin-badge">CHECKOUT</div>
                 <h2 id="checkout-title">Delivery details</h2>
                 <p>{isPlagiarismOnly ? "Your plagiarism report will be sent to the WhatsApp number below within 24 hours." : "Share your current location, then confirm the delivery address below."}</p>
                 <label className="checkout-field">Full name<input value={customerName} onChange={(e) => setCustomerName(e.target.value)} placeholder="Your full name" /></label>
@@ -2344,30 +2358,30 @@ export default function PrintBeeApp({ viewer, appwriteConfigured }: { viewer: Vi
                 {packagingEnabled && <button type="button" className={`packaging-choice ${needsPackaging ? "selected" : ""}`} aria-pressed={needsPackaging} onClick={() => setNeedsPackaging((current) => !current)}><span><strong>Need packaging for this order?</strong><small>Add protective packaging for {inr.format(packagingFee)}.</small></span><b>{needsPackaging ? "✓ Added" : "Add"}</b></button>}
                 <div className="fee-breakdown"><div><span>Printing subtotal</span><strong>{inr.format(cartPrintingTotal)}</strong></div>{cartServiceCharges > 0 && <div className="binding-charge-row"><span>Service charges</span><strong>{inr.format(cartServiceCharges)}</strong></div>}{cartAddonCharges > 0 && <div className="binding-charge-row"><span>Add-ons</span><strong>{inr.format(cartAddonCharges)}</strong></div>}<div><span>Delivery fee</span><strong>{inr.format(checkoutDeliveryFee)}</strong></div>{incampusDelivery && <div className="binding-charge-row"><span>In-campus delivery</span><strong>{inr.format(checkoutIncampusFee)}</strong></div>}<div><span>Platform fee</span><strong>{inr.format(checkoutPlatformFee)}</strong></div>{needsPackaging && packagingEnabled && <div className="packaging-charge-row"><span>Packaging fee</span><strong>{inr.format(checkoutPackagingFee)}</strong></div>}{surgeEnabled && <div className="surge-charge-row"><span>High-demand surge charge</span><strong>{inr.format(checkoutSurgeFee)}</strong></div>}{lateNightEnabled && <div className="surge-charge-row"><span>Late-night delivery fee</span><strong>{inr.format(checkoutLateNightFee)}</strong></div>}{gatewayEnabled && checkoutGatewayFee > 0 && <div><span>Payment handling charges</span><strong>{inr.format(checkoutGatewayFee)}</strong></div>}{pointsDiscount > 0 && <div className="points-discount-row"><span>Points discount ({redeemablePoints} points)</span><strong>−{inr.format(pointsDiscount)}</strong></div>}</div>
                 <button type="button" className={`wallet-balance-button ${usePoints ? "selected" : ""}`} disabled={redeemablePoints < 1} onClick={() => setUsePoints((current) => !current)}><span className="wallet-icon">₹</span><span><strong>{usePoints ? "Wallet applied" : "Use wallet balance"}</strong><small>{pointsBalance} points · worth {inr.format(pointsBalance / 15)} · every point is redeemable</small></span><b>{usePoints ? "✓" : "Use"}</b></button>
-                <div className="checkout-total"><span>Estimated total</span><strong>{inr.format(Math.max(0, checkoutBeforePoints - pointsDiscount))}</strong></div>
+                <div className="checkout-total"><span>Estimated total</span><AnimatedPrice value={Math.max(0, checkoutBeforePoints - pointsDiscount)} /></div>
                 <div className="points-earned-preview"><span>◉</span><div><strong>You’ll earn {Math.floor(Math.max(0, checkoutBeforePoints - pointsDiscount) / 10)} wallet points</strong><small>Credited after this order is successfully delivered.</small></div></div>
                 <div className="pay-on-delivery-note"><strong>Secure online payment:</strong> After creating the order, complete payment through Razorpay. Printing begins only after verified payment.</div>
                 {orderError && <p className="form-error">{orderError}</p>}
-                <button className="save-button" disabled={(!isPlagiarismOnly && (!deliveryAddress.trim() || !customerCoordinates || calculatedDeliveryFee === null || (incampusDelivery && (!campusBuilding.trim() || (incampusType === "CLASSROOM" && !classroomNumber.trim()))))) || !customerName.trim() || mobileNumber.length !== 10 || paymentProcessing} onClick={placeOrder}>{paymentProcessing ? "Starting Razorpay..." : "Pay now"}</button>
+                <button className="save-button" aria-busy={paymentProcessing} disabled={(!isPlagiarismOnly && (!deliveryAddress.trim() || !customerCoordinates || calculatedDeliveryFee === null || (incampusDelivery && (!campusBuilding.trim() || (incampusType === "CLASSROOM" && !classroomNumber.trim()))))) || !customerName.trim() || mobileNumber.length !== 10 || paymentProcessing} onClick={placeOrder}>{paymentProcessing ? <LoadingAnimation label="Starting Razorpay…" /> : "Pay now"}</button>
               </>
             )}
           </section>
         </div>
-      )}
+      )}</GlassPresence>
 
-      {walletOpen && (
+      <GlassPresence>{walletOpen && (
         <div className="modal-backdrop" role="presentation" onMouseDown={() => setWalletOpen(false)}>
           <section className="checkout-modal wallet-modal" role="dialog" aria-modal="true" aria-labelledby="wallet-title" onMouseDown={(event) => event.stopPropagation()}>
             <button className="close" onClick={() => setWalletOpen(false)} aria-label="Close wallet">×</button>
-            <div className="wallet-heading"><span>◉</span><div><small>PRINTBEE WALLET</small><h2 id="wallet-title">{pointsBalance} points</h2><p>Worth {inr.format(pointsBalance / 15)} · every point can be redeemed at checkout.</p></div></div>
+            <div className="wallet-heading"><span>◉</span><div><small>PRINTBEE WALLET</small><h2 id="wallet-title"><AnimatedCounter value={pointsBalance} onceInView /> points</h2><p>Worth {inr.format(pointsBalance / 15)} · every point can be redeemed at checkout.</p></div></div>
             <div className="earn-more-card"><div className="admin-badge">EARN MORE</div><h3>Invite friends to PrintBee</h3><p>Share your unique referral code or link. You earn 1 point for every ₹15 your referred friends spend on delivered orders.</p><label>Your referral code<input readOnly value={myReferralCode} /></label><label>Shareable referral link<input readOnly value={typeof window === "undefined" ? "" : `${window.location.origin}/?ref=${myReferralCode}`} /></label><button className="save-button" disabled={!myReferralCode} onClick={shareReferral}>Share referral link</button></div>
             {!hasReferrer ? <div className="existing-referral-card"><h3>Have a referral code?</h3><p>Existing users can link a valid code too. This is optional and can be done once.</p><label className="checkout-field">Referral code<input value={referralCode} onChange={(event) => setReferralCode(event.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ""))} placeholder="PBXXXXXXXX" /></label><button className="save-button" disabled={!referralCode.trim()} onClick={linkExistingReferral}>Verify referral code</button></div> : <div className="referral-linked">✓ A referral code is linked to your account.</div>}
             {walletMessage && <p className="panel-message">{walletMessage}</p>}
           </section>
         </div>
-      )}
+      )}</GlassPresence>
 
-      {deliveryOpen && (
+      <GlassPresence>{deliveryOpen && (
         <div className="modal-backdrop" role="presentation" onMouseDown={() => setDeliveryOpen(false)}>
           <section className="checkout-modal" role="dialog" aria-modal="true" aria-labelledby="delivery-title" onMouseDown={(e) => e.stopPropagation()}>
             <button className="close" onClick={() => setDeliveryOpen(false)} aria-label="Close">×</button>
@@ -2393,9 +2407,9 @@ export default function PrintBeeApp({ viewer, appwriteConfigured }: { viewer: Vi
             {deliveryMessage && <p className="panel-message">{deliveryMessage}</p>}
           </section>
         </div>
-      )}
+      )}</GlassPresence>
 
-      {myOrdersOpen && (
+      <GlassPresence>{myOrdersOpen && (
         <div className="modal-backdrop" role="presentation" onMouseDown={() => setMyOrdersOpen(false)}>
           <section className="orders-modal" role="dialog" aria-modal="true" onMouseDown={(e) => e.stopPropagation()}>
             <button className="close" onClick={() => setMyOrdersOpen(false)} aria-label="Close">×</button>
@@ -2409,7 +2423,7 @@ export default function PrintBeeApp({ viewer, appwriteConfigured }: { viewer: Vi
             {myOrders.filter((order) => order.status === "DELIVERED" && !order.feedback_submitted).map((order) => <button key={`feedback-${order.id}`} className="feedback-invite" onClick={() => { setFeedbackOrder(order); setFeedback({ serviceRating: 0, riderRating: 0, printQualityRating: 0, overallRating: 0, description: "" }); }}>Rate your delivered order {order.order_number} (optional)</button>)}
           </section>
         </div>
-      )}
+      )}</GlassPresence>
 
       {expandedScanner && (
         <div className="scanner-fullscreen" role="dialog" aria-modal="true" aria-label="Full-screen payment scanner" onClick={() => setExpandedScanner(null)}>
@@ -2419,7 +2433,7 @@ export default function PrintBeeApp({ viewer, appwriteConfigured }: { viewer: Vi
         </div>
       )}
 
-      {feedbackOrder && (
+      <GlassPresence>{feedbackOrder && (
         <div className="modal-backdrop" role="presentation" onMouseDown={() => setFeedbackOrder(null)}>
           <section className="checkout-modal feedback-modal" role="dialog" aria-modal="true" aria-labelledby="feedback-title" onMouseDown={(event) => event.stopPropagation()}>
             <button className="close" onClick={() => setFeedbackOrder(null)} aria-label="Close feedback form">×</button>
@@ -2431,10 +2445,10 @@ export default function PrintBeeApp({ viewer, appwriteConfigured }: { viewer: Vi
             <button className="skip-feedback" onClick={() => setFeedbackOrder(null)}>Maybe later</button>
           </section>
         </div>
-      )}
+      )}</GlassPresence>
 
-      {franchiseApplyOpen && <div className="modal-backdrop" role="presentation" onMouseDown={() => setFranchiseApplyOpen(false)}><section className="login-modal franchise-application-modal" role="dialog" aria-modal="true" aria-labelledby="franchise-apply-title" onMouseDown={(e) => e.stopPropagation()}><button className="close" onClick={() => setFranchiseApplyOpen(false)} aria-label="Close">×</button><img src="/printbee-logo.png" width={72} height={72} alt="PrintBee" /><div className="admin-badge">PRINTBEE FRANCHISE</div><h2 id="franchise-apply-title">Apply for a franchise</h2><p>Start your PrintBee franchise journey for <strong>₹60,000</strong>. We will contact you after reviewing the application.</p><div className="franchise-application-form"><input value={franchiseApplication.fullName} onChange={(e) => setFranchiseApplication({ ...franchiseApplication, fullName: e.target.value })} placeholder="Full name" /><input value={franchiseApplication.location} onChange={(e) => setFranchiseApplication({ ...franchiseApplication, location: e.target.value })} placeholder="Preferred store location / city" /><input value={franchiseApplication.mobileNumber} onChange={(e) => setFranchiseApplication({ ...franchiseApplication, mobileNumber: e.target.value.replace(/\D/g, "").slice(0, 10) })} placeholder="Mobile number" inputMode="numeric" /><input value={viewer?.email ?? ""} disabled aria-label="Email address" /><input value={franchiseApplication.whatsappNumber} onChange={(e) => setFranchiseApplication({ ...franchiseApplication, whatsappNumber: e.target.value.replace(/\D/g, "").slice(0, 10) })} placeholder="WhatsApp number" inputMode="numeric" /><textarea value={franchiseApplication.address} onChange={(e) => setFranchiseApplication({ ...franchiseApplication, address: e.target.value })} placeholder="Full address" /></div>{franchiseApplyMessage && <p className="panel-message">{franchiseApplyMessage}</p>}<button className="save-button" onClick={submitFranchiseApplication}>Submit application</button></section></div>}
-      {loginOpen && (
+      <GlassPresence>{franchiseApplyOpen && <div className="modal-backdrop" role="presentation" onMouseDown={() => setFranchiseApplyOpen(false)}><section className="login-modal franchise-application-modal" role="dialog" aria-modal="true" aria-labelledby="franchise-apply-title" onMouseDown={(e) => e.stopPropagation()}><button className="close" onClick={() => setFranchiseApplyOpen(false)} aria-label="Close">×</button><img src="/printbee-logo.png" width={72} height={72} alt="PrintBee" /><div className="admin-badge">PRINTBEE FRANCHISE</div><h2 id="franchise-apply-title">Apply for a franchise</h2><p>Start your PrintBee franchise journey for <strong>₹60,000</strong>. We will contact you after reviewing the application.</p><div className="franchise-application-form"><input value={franchiseApplication.fullName} onChange={(e) => setFranchiseApplication({ ...franchiseApplication, fullName: e.target.value })} placeholder="Full name" /><input value={franchiseApplication.location} onChange={(e) => setFranchiseApplication({ ...franchiseApplication, location: e.target.value })} placeholder="Preferred store location / city" /><input value={franchiseApplication.mobileNumber} onChange={(e) => setFranchiseApplication({ ...franchiseApplication, mobileNumber: e.target.value.replace(/\D/g, "").slice(0, 10) })} placeholder="Mobile number" inputMode="numeric" /><input value={viewer?.email ?? ""} disabled aria-label="Email address" /><input value={franchiseApplication.whatsappNumber} onChange={(e) => setFranchiseApplication({ ...franchiseApplication, whatsappNumber: e.target.value.replace(/\D/g, "").slice(0, 10) })} placeholder="WhatsApp number" inputMode="numeric" /><textarea value={franchiseApplication.address} onChange={(e) => setFranchiseApplication({ ...franchiseApplication, address: e.target.value })} placeholder="Full address" /></div>{franchiseApplyMessage && <p className="panel-message">{franchiseApplyMessage}</p>}<button className="save-button" onClick={submitFranchiseApplication}>Submit application</button></section></div>}</GlassPresence>
+      <GlassPresence>{loginOpen && (
         <div className="modal-backdrop" role="presentation" onMouseDown={() => setLoginOpen(false)}>
           <section className="login-modal" role="dialog" aria-modal="true" aria-labelledby="login-title" onMouseDown={(e) => e.stopPropagation()}>
             <button className="close" onClick={() => setLoginOpen(false)} aria-label="Close">×</button>
@@ -2451,9 +2465,9 @@ export default function PrintBeeApp({ viewer, appwriteConfigured }: { viewer: Vi
             <small>By continuing, you agree to PrintBee's <a href="/terms">terms</a> and <a href="/privacy-policy">privacy policy</a>.</small>
           </section>
         </div>
-      )}
+      )}</GlassPresence>
 
-      {editingCartItem && (
+      <GlassPresence>{editingCartItem && (
         <div className="modal-backdrop" role="presentation" onMouseDown={() => setEditingCartItem(null)}>
           <section className="checkout-modal cart-edit-modal" role="dialog" aria-modal="true" aria-labelledby="cart-edit-title" onMouseDown={(event) => event.stopPropagation()}>
             <button className="close" onClick={() => setEditingCartItem(null)} aria-label="Close">×</button>
@@ -2467,9 +2481,9 @@ export default function PrintBeeApp({ viewer, appwriteConfigured }: { viewer: Vi
             <button className="save-button" onClick={saveCartEdit}>Save changes</button>
           </section>
         </div>
-      )}
+      )}</GlassPresence>
 
-      {riderApplicationOpen && (
+      <GlassPresence>{riderApplicationOpen && (
         <div className="modal-backdrop" role="presentation" onMouseDown={() => setRiderApplicationOpen(false)}>
           <section className="login-modal" role="dialog" aria-modal="true" onMouseDown={(e) => e.stopPropagation()}>
             <button className="close" onClick={() => setRiderApplicationOpen(false)} aria-label="Close">×</button>
@@ -2483,7 +2497,7 @@ export default function PrintBeeApp({ viewer, appwriteConfigured }: { viewer: Vi
             {authMessage && <p className="auth-message">{authMessage}</p>}
           </section>
         </div>
-      )}
+      )}</GlassPresence>
     </main>
   );
 }
