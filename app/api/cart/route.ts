@@ -24,8 +24,12 @@ export async function POST(request: Request) {
   const itemJson = JSON.stringify(item);
   if (itemJson.length > 20_000) return NextResponse.json({ error: "Invalid cart item" }, { status: 400 });
   if (item.kind !== "ADDON") {
-    const upload = await database().prepare("SELECT id FROM uploads WHERE id=? AND customer_email=? AND order_id IS NULL AND deleted_at IS NULL").bind(item.uploadId, viewer.email).first();
+    const upload = await database().prepare("SELECT id,original_name,content_type FROM uploads WHERE id=? AND customer_email=? AND order_id IS NULL AND deleted_at IS NULL").bind(item.uploadId, viewer.email).first<{ id: string; original_name: string; content_type: string }>();
     if (!upload) return NextResponse.json({ error: "The uploaded file is unavailable" }, { status: 400 });
+    if (item.serviceId === "turnitin-plagiarism-check") {
+      if (!String(upload.original_name).toLowerCase().endsWith(".pdf") || (upload.content_type && upload.content_type !== "application/pdf")) return NextResponse.json({ error: "Plagiarism reports accept PDF files only." }, { status: 400 });
+      Object.assign(item, { copies: 1, mode: "bw-single", unitPrice: 0, total: 175, servicePrice: 175, addons: [], addonsTotal: 0, countsForPackaging: false });
+    }
   }
   await database().prepare("INSERT INTO cart_items (id,customer_email,upload_id,item_json,created_at) VALUES (?,?,?,?,?) ON CONFLICT(upload_id) DO UPDATE SET item_json=excluded.item_json")
     .bind(item.id, viewer.email, item.uploadId, itemJson, new Date().toISOString()).run();

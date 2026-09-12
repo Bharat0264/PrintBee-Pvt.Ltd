@@ -49,6 +49,8 @@ const MIXED_PRINT_SERVICES = new Set([
   "70d778dc-2d81-4302-a383-2d53724616e3",
 ]);
 const PLAGIARISM_SERVICE_ID = "turnitin-plagiarism-check";
+const PLAGIARISM_PRICE = 175;
+const PLAGIARISM_GATEWAY_PERCENT = 2.36;
 const GEN_Z_MEMES = [
   "POV: You skipped the Xerox queue and chose peace. 😌",
   "Your assignment is printing itself. Main-character logistics. ✨",
@@ -229,8 +231,8 @@ function downloadLedgerCsv(ledger: any) {
     return `"${text.replaceAll('"', '""')}"`;
   };
   const rupees = (paise: unknown) => (Number(paise) / 100).toFixed(2);
-  const ledgerHeaders = ["Date / order", "Orders", "Collected (INR)", "Printing revenue", "Printing operational cost", "Points discount (printing cost)", "Printing profit", "Other service revenue", "Other service operating cost", "Ramya other service profit", "Add-ons revenue", "Delivery collected", "Delivery partner fee", "Delivery profit (25%)", "Platform fee", "Packing revenue", "Packing cost", "Packing profit", "Gateway fee/cost", "Surge", "Late-night", "Total operational cost", "Total profit", "Bharat 35% printing profit", "Bharat other profit", "Bharat total", "Ramya 65% printing profit", "Ramya other service profit", "Ramya total", "Share tally"];
-  const ledgerRow = (row: any, label: string) => [label, row.orders, rupees(row.amountCollectedPaise), rupees(row.printingRevenuePaise), rupees(row.printingOperationalCostPaise), rupees(row.pointsDiscountPaise), rupees(row.printingProfitPaise), rupees(row.otherServiceRevenuePaise), rupees(row.otherServiceOperatingCostPaise), rupees(row.ramyaOtherServiceProfitPaise), rupees(row.addonRevenuePaise), rupees(row.deliveryCollectedPaise), rupees(row.riderCostPaise), rupees(row.deliveryProfitPaise), rupees(row.platformCollectedPaise), rupees(row.packagingCollectedPaise), rupees(row.packagingCostPaise), rupees(row.packagingProfitPaise), rupees(row.gatewayCollectedPaise), rupees(row.surgeCollectedPaise), rupees(row.lateNightCollectedPaise), rupees(row.operationalCostPaise), rupees(row.netProfitPaise), rupees(row.bharatPrintingProfitPaise), rupees(row.bharatOtherProfitPaise), rupees(row.bharatTotalProfitPaise), rupees(row.ramyaPrintingProfitPaise), rupees(row.ramyaOtherServiceProfitPaise), rupees(row.ramyaTotalProfitPaise), rupees(row.shareTallyPaise)];
+  const ledgerHeaders = ["Date / order", "Orders", "Collected (INR)", "Printing revenue", "Printing operational cost", "Points discount (printing cost)", "Printing profit", "Plagiarism revenue", "Plagiarism operating cost", "Plagiarism profit", "Other service revenue", "Other service operating cost", "Ramya other service profit", "Add-ons revenue", "Delivery collected", "Delivery partner fee", "Delivery profit (25%)", "Platform fee", "Packing revenue", "Packing cost", "Packing profit", "Gateway fee/cost", "Surge", "Late-night", "Total operational cost", "Total profit", "Bharat 35% printing profit", "Bharat other profit", "Bharat total", "Ramya 65% printing profit", "Ramya other service profit", "Ramya total", "Share tally"];
+  const ledgerRow = (row: any, label: string) => [label, row.orders, rupees(row.amountCollectedPaise), rupees(row.printingRevenuePaise), rupees(row.printingOperationalCostPaise), rupees(row.pointsDiscountPaise), rupees(row.printingProfitPaise), rupees(row.plagiarismRevenuePaise), rupees(row.plagiarismOperationalCostPaise), rupees(row.plagiarismProfitPaise), rupees(row.otherServiceRevenuePaise), rupees(row.otherServiceOperatingCostPaise), rupees(row.ramyaOtherServiceProfitPaise), rupees(row.addonRevenuePaise), rupees(row.deliveryCollectedPaise), rupees(row.riderCostPaise), rupees(row.deliveryProfitPaise), rupees(row.platformCollectedPaise), rupees(row.packagingCollectedPaise), rupees(row.packagingCostPaise), rupees(row.packagingProfitPaise), rupees(row.gatewayCollectedPaise), rupees(row.surgeCollectedPaise), rupees(row.lateNightCollectedPaise), rupees(row.operationalCostPaise), rupees(row.netProfitPaise), rupees(row.bharatPrintingProfitPaise), rupees(row.bharatOtherProfitPaise), rupees(row.bharatTotalProfitPaise), rupees(row.ramyaPrintingProfitPaise), rupees(row.ramyaOtherServiceProfitPaise), rupees(row.ramyaTotalProfitPaise), rupees(row.shareTallyPaise)];
   const rows: unknown[][] = [
     ["PrintBee ledger — all paid orders through", new Date().toLocaleString("en-IN")],
     [],
@@ -257,6 +259,7 @@ function downloadLedgerCsv(ledger: any) {
 
 const ledgerFinancialColumns = [
   ["Collected", "amountCollectedPaise"], ["Printing revenue", "printingRevenuePaise"], ["Printing op. cost", "printingOperationalCostPaise"], ["Points discount (printing cost)", "pointsDiscountPaise"], ["Printing profit", "printingProfitPaise"],
+  ["Plagiarism revenue", "plagiarismRevenuePaise"], ["Plagiarism op. cost", "plagiarismOperationalCostPaise"], ["Plagiarism profit", "plagiarismProfitPaise"],
   ["Other service revenue", "otherServiceRevenuePaise"], ["Other service operating cost", "otherServiceOperatingCostPaise"], ["Ramya other service profit", "ramyaOtherServiceProfitPaise"], ["Add-ons revenue / profit", "addonRevenuePaise"], ["Delivery collected", "deliveryCollectedPaise"], ["Delivery partner fee", "riderCostPaise"],
   ["Delivery profit (25%)", "deliveryProfitPaise"], ["Platform fee", "platformCollectedPaise"], ["Packing revenue", "packagingCollectedPaise"], ["Packing cost", "packagingCostPaise"], ["Packing profit", "packagingProfitPaise"],
   ["Gateway fee / cost", "gatewayCollectedPaise"], ["Surge", "surgeCollectedPaise"], ["Late-night", "lateNightCollectedPaise"], ["Total op. cost", "operationalCostPaise"],
@@ -650,7 +653,7 @@ export default function PrintBeeApp({ viewer, appwriteConfigured }: { viewer: Vi
   const selected = options.find((item) => item.id === mode)!;
   const selectedService = printServices.find((service) => service.id === serviceId);
   const isPlagiarismService = serviceId === PLAGIARISM_SERVICE_ID;
-  const servicePrice = (selectedService?.price_paise ?? 0) / 100;
+  const servicePrice = isPlagiarismService ? PLAGIARISM_PRICE : (selectedService?.price_paise ?? 0) / 100;
   const usesMixedPagePricing = MIXED_PRINT_SERVICES.has(serviceId);
   const colourPageResult = useMemo(() => parsePageNumbers(colourPageNumbers, pages), [colourPageNumbers, pages]);
   const colourPageCount = colourChoice === "colour" ? pages : colourChoice === "mixed" ? colourPageResult.count : 0;
@@ -714,7 +717,12 @@ export default function PrintBeeApp({ viewer, appwriteConfigured }: { viewer: Vi
     if (!files.length) return;
     const validFiles = files.filter((file) => file.size <= MAX_UPLOAD_BYTES && PRINTABLE_FILE_EXTENSIONS.test(file.name));
     if (!validFiles.length) return setUploadError("Choose PDF, JPG/JPEG, PNG, WEBP or HEIC files smaller than 50 MB.");
-    if (isPlagiarismService) return selectFile(validFiles[0]);
+    if (isPlagiarismService) {
+      const pdf = validFiles[0];
+      if (!pdf || !(pdf.type === "application/pdf" || pdf.name.toLowerCase().endsWith(".pdf"))) return setUploadError("For plagiarism reports, upload one PDF file only.");
+      if (files.length > 1) setUploadError("Add one PDF at a time. You can add another PDF after this one is in your cart.");
+      return selectFile(pdf);
+    }
     setCountingPages(true);
     setUploadError("");
     try {
@@ -789,6 +797,7 @@ export default function PrintBeeApp({ viewer, appwriteConfigured }: { viewer: Vi
   const addToCart = async () => {
     if (!viewer) return setLoginOpen(true);
     if (!fileName || !selectedFile || countingPages) return;
+    if (isPlagiarismService && !(selectedFile.type === "application/pdf" || selectedFile.name.toLowerCase().endsWith(".pdf"))) return setUploadError("For plagiarism reports, upload one PDF file only.");
     if (usesMixedPagePricing && !colourPagesValid) return setUploadError("Enter valid colour page numbers, or select NA if there are no colour pages.");
     if (selectedFile.size > MAX_UPLOAD_BYTES) return setUploadError("This file is larger than the 50 MB upload limit.");
     setCountingPages(true);
@@ -826,7 +835,7 @@ export default function PrintBeeApp({ viewer, appwriteConfigured }: { viewer: Vi
         total,
         serviceId,
         serviceName: service?.name ?? "Document printing",
-        servicePrice: (service?.price_paise ?? 0) / 100,
+        servicePrice: isPlagiarismService ? PLAGIARISM_PRICE : (service?.price_paise ?? 0) / 100,
         countsForPackaging: Boolean(service?.counts_for_packaging ?? 1),
         printInstructions: printInstructions.trim(),
         colourPages: usesMixedPagePricing ? colourPageCount : undefined,
@@ -1714,7 +1723,7 @@ export default function PrintBeeApp({ viewer, appwriteConfigured }: { viewer: Vi
   const surgeBase = cartTotal + checkoutDeliveryFee + checkoutPlatformFee;
   const checkoutSurgeFee = isPlagiarismOnly ? 0 : surgeEnabled ? surgeType === "FIXED" ? surgeValue : surgeBase * surgeValue / 100 : 0;
   const checkoutLateNightFee = isPlagiarismOnly ? 0 : lateNightEnabled ? lateNightType === "FIXED" ? lateNightValue : surgeBase * lateNightValue / 100 : 0;
-  const checkoutGatewayFee = !isPlagiarismOnly && gatewayEnabled ? (cartTotal + checkoutDeliveryFee + checkoutIncampusFee + checkoutPlatformFee) * gatewayFeePercent / 100 : 0;
+  const checkoutGatewayFee = isPlagiarismOnly ? cartTotal * PLAGIARISM_GATEWAY_PERCENT / 100 : gatewayEnabled ? (cartTotal + checkoutDeliveryFee + checkoutIncampusFee + checkoutPlatformFee) * gatewayFeePercent / 100 : 0;
   const checkoutPackagingFee = isPlagiarismOnly ? 0 : packagingEnabled && needsPackaging ? packagingFee : 0;
   const checkoutBeforePoints = cartTotal + checkoutDeliveryFee + checkoutIncampusFee + checkoutPlatformFee + checkoutPackagingFee + checkoutSurgeFee + checkoutLateNightFee + checkoutGatewayFee;
   const redeemablePoints = Math.min(pointsBalance, Math.max(0, Math.floor((checkoutBeforePoints - 1) * 15)));
@@ -1856,20 +1865,20 @@ export default function PrintBeeApp({ viewer, appwriteConfigured }: { viewer: Vi
           </div>
 
           {!isPlagiarismService && <button type="button" className="plagiarism-start" onClick={() => { setServiceId(PLAGIARISM_SERVICE_ID); setFileName(""); setSelectedFile(null); setBatchFiles([]); setSelectedAddonIds([]); setUploadError(""); }}><span>NEW</span><div><strong>Plagiarism report</strong><small>Upload your paper or report · ₹175 · WhatsApp report within 24 hours</small></div><b>Start →</b></button>}
-          {isPlagiarismService && <div className="plagiarism-flow-heading"><div><strong>Plagiarism report</strong><small>Online service · ₹175 · no delivery or printing charges</small></div><button type="button" className="plagiarism-back-button" onClick={() => { setServiceId("document-printing"); setFileName(""); setSelectedFile(null); setBatchFiles([]); }}>← Go back to printing</button></div>}
+          {isPlagiarismService && <div className="plagiarism-flow-heading"><div><strong>Plagiarism report</strong><small>₹175 per PDF · add each file separately · 2.36% payment handling applies to the cart total</small></div><button type="button" className="plagiarism-back-button" onClick={() => { setServiceId("document-printing"); setFileName(""); setSelectedFile(null); setBatchFiles([]); }}>← Go back to printing</button></div>}
 
           <label className={`upload-zone ${fileName ? "has-file" : ""} ${countingPages ? "is-processing" : ""}`} aria-busy={countingPages} onDragOver={(event) => { event.preventDefault(); event.currentTarget.classList.add("is-dragging"); }} onDragLeave={(event) => { if (!event.currentTarget.contains(event.relatedTarget as Node)) event.currentTarget.classList.remove("is-dragging"); }} onDrop={(event) => { event.preventDefault(); event.currentTarget.classList.remove("is-dragging"); if (!countingPages) void handleFile({ target: { files: event.dataTransfer.files, value: "" } } as ChangeEvent<HTMLInputElement>); }}>
-            <input type="file" multiple accept=".pdf,.jpg,.jpeg,.png,.webp,.heic,application/pdf,image/jpeg,image/png,image/webp,image/heic,image/heif" onChange={handleFile} />
+            <input type="file" multiple={!isPlagiarismService} accept={isPlagiarismService ? ".pdf,application/pdf" : ".pdf,.jpg,.jpeg,.png,.webp,.heic,application/pdf,image/jpeg,image/png,image/webp,image/heic,image/heif"} onChange={handleFile} />
             <span className="upload-icon">{countingPages ? <LoadingAnimation compact /> : fileName ? "✓" : "↑"}</span>
-            <strong>{fileName ? "Document ready" : "Upload Files"}</strong>
+            <strong>{fileName ? "Document ready" : isPlagiarismService ? "Upload PDF" : "Upload Files"}</strong>
             {fileName && <small className="original-file-name">Original: {fileName}</small>}
-            <small>{uploadProgress !== null ? `Uploading… ${uploadProgress}%` : countingPages ? "Checking file…" : fileName ? `${pages} ${pages === 1 ? "page" : "pages"} detected${fileQueue.length ? ` · ${fileQueue.length} more queued` : ""}` : "Select one or more PDF or image files"}</small>
+            <small>{uploadProgress !== null ? `Uploading… ${uploadProgress}%` : countingPages ? "Checking file…" : fileName ? `${pages} ${pages === 1 ? "page" : "pages"} detected${fileQueue.length ? ` · ${fileQueue.length} more queued` : ""}` : isPlagiarismService ? "Select one PDF file" : "Select one or more PDF or image files"}</small>
           </label>
           {uploadProgress !== null && <progress className="upload-progress" value={uploadProgress} max={100} aria-label="File upload progress" />}
           {countingPages && <div className="processing-skeleton" role="status">Preparing your document…</div>}
           {selectedFile && <p className="file-size">{formatFileSize(selectedFile.size)} · securely selected</p>}
           {fileName && !isPlagiarismService && <DocumentPreview pages={pages} copies={copies} colour={mode.startsWith("colour")} doubleSided={mode.endsWith("double")} file={selectedFile} />}
-          <p className="file-retention-note"><strong>Accepted files: PDF, JPG/JPEG, PNG, WEBP and HEIC only.</strong> Select multiple files to review all print choices together before adding the full batch to your cart. PDFs are counted automatically; each image is treated as one printable page. Files are deleted after delivery or cancellation. Maximum file size: 50 MB per file.</p>
+          <p className="file-retention-note">{isPlagiarismService ? <><strong>Accepted file: one PDF only.</strong> Add it to the cart before selecting another PDF. Each PDF costs ₹175; payment handling is calculated once on the complete plagiarism cart. Maximum file size: 50 MB.</> : <><strong>Accepted files: PDF, JPG/JPEG, PNG, WEBP and HEIC only.</strong> Select multiple files to review all print choices together before adding the full batch to your cart. PDFs are counted automatically; each image is treated as one printable page. Files are deleted after delivery or cancellation. Maximum file size: 50 MB per file.</>}</p>
           {uploadError && <div className="upload-error" role="alert"><p>{uploadError}</p><button type="button" onClick={() => document.querySelector<HTMLInputElement>('.upload-zone input')?.click()}>Choose file again</button></div>}
 
           {batchFiles.length > 0 && (() => {
@@ -1919,7 +1928,7 @@ export default function PrintBeeApp({ viewer, appwriteConfigured }: { viewer: Vi
             </div>
           )}
 
-          {isPlagiarismService && <div className="binding-fields plagiarism-service-note"><strong>Turnitin plagiarism check · ₹175</strong><p>You will receive your plagiarism report within 24 hours on the WhatsApp number provided below.</p><label>WhatsApp number<input value={whatsappNumber} onChange={(e) => setWhatsappNumber(e.target.value.replace(/\D/g, "").slice(0, 10))} inputMode="numeric" placeholder="10-digit WhatsApp number" /></label></div>}
+          {isPlagiarismService && <div className="binding-fields plagiarism-service-note"><strong>Turnitin plagiarism check · ₹175 per PDF</strong><p>Add one PDF at a time. Add each PDF to cart before uploading the next one; the 2.36% payment handling charge is calculated once on the overall plagiarism cart value.</p><label>WhatsApp number<input value={whatsappNumber} onChange={(e) => setWhatsappNumber(e.target.value.replace(/\D/g, "").slice(0, 10))} inputMode="numeric" placeholder="10-digit WhatsApp number" /></label></div>}
 
           {!isPlagiarismService && <div className="binding-fields">
             <strong><span className="step">3</span> Choose print sides</strong>
@@ -1995,14 +2004,14 @@ export default function PrintBeeApp({ viewer, appwriteConfigured }: { viewer: Vi
                     <div className="file-badge">{item.kind === "ADDON" ? "ADD" : item.fileType === "PDF" ? "PDF" : item.fileType === "IMAGE" ? "IMG" : "DOC"}</div>
                     {item.kind === "ADDON" ? <div className="cart-file"><h3>{item.fileName}</h3><p>Add-on only · No printout required</p><small>Fixed product price</small></div> : <div className="cart-file"><h3>{item.displayReference ?? item.fileName}</h3><small className="original-file-name">Original: {item.fileName}</small><p>{item.serviceName} · {item.pages} {item.pages === 1 ? "page" : "pages"} · A4 · {itemOption?.title ?? printModeLabel(item.mode)} · {item.copies} {item.copies === 1 ? "copy" : "copies"}</p>{item.colourPageNumbers !== undefined && <p>Colour pages: {item.colourPageNumbers} · B&amp;W pages: {item.bwPageNumbers ?? `remaining ${item.pages - (item.colourPages ?? 0)} pages`}</p>}{item.addons?.length ? <p>Add-ons: {item.addons.map((addon) => addon.name).join(", ")}</p> : null}{item.printInstructions && <p>{item.printInstructions}{item.whatsappNumber ? ` · WhatsApp ${item.whatsappNumber}` : ""}</p>}<small>{item.colourPageNumbers !== undefined ? `${item.pages - (item.colourPages ?? 0)} B&W + ${item.colourPages ?? 0} colour × ${item.copies}` : `${item.pages}${item.mode.endsWith("double") ? " ÷ 2" : ""} × ${item.copies} × ${inr.format(item.unitPrice)}`}{item.servicePrice > 0 ? ` + ${inr.format(item.servicePrice)} service charge` : ""}{item.addonsTotal ? ` + ${inr.format(item.addonsTotal)} add-ons` : ""}</small></div>}
                     <strong>{inr.format(item.total)}</strong>
-                    {item.kind !== "ADDON" && <button className="edit-cart-item" onClick={() => openCartEditor(item)} aria-label={`Edit ${item.fileName}`}>Edit</button>}
+                    {item.kind !== "ADDON" && item.serviceId !== PLAGIARISM_SERVICE_ID && <button className="edit-cart-item" onClick={() => openCartEditor(item)} aria-label={`Edit ${item.fileName}`}>Edit</button>}
                     <button className="remove-item" onClick={() => removeFromCart(item)} aria-label={`Remove ${item.fileName}`}>×</button>
                   </article>
                 );
               })}
             </div>
             <div className="cart-summary">
-              <div><span>Printing subtotal</span><AnimatedPrice value={cartTotal} /></div>
+              <div><span>{isPlagiarismOnly ? "Plagiarism subtotal" : "Printing subtotal"}</span><AnimatedPrice value={cartTotal} /></div>
               <button onClick={openCheckout}>Proceed to checkout →</button>
             </div>
           </>
@@ -2208,7 +2217,8 @@ export default function PrintBeeApp({ viewer, appwriteConfigured }: { viewer: Vi
                     <div className="ledger-summary">
                       <div><small>Amount collected</small><strong>{inr.format(ledger.totals.amountCollectedPaise / 100)}</strong></div><div><small>Operational cost</small><strong>{inr.format(ledger.totals.operationalCostPaise / 100)}</strong></div><div><small>Total profit</small><strong>{inr.format(ledger.totals.netProfitPaise / 100)}</strong></div><div><small>Bharat total</small><strong>{inr.format(ledger.totals.bharatTotalProfitPaise / 100)}</strong></div><div><small>Ramya total</small><strong>{inr.format(ledger.totals.ramyaTotalProfitPaise / 100)}</strong></div><div><small>Shares tally to</small><strong>{inr.format(ledger.totals.shareTallyPaise / 100)}</strong></div>
                     </div>
-                    <p className="ledger-note">Points discounts are included in printing operational cost and reduce printing profit. Every plagiarism report is recorded as ₹175 revenue, ₹150 operational cost and ₹25 profit allocated 100% to Bharat. Ramya receives 65% only of printing profit; Bharat receives the other 35% plus all other business profit.</p>
+                    <p className="ledger-note">Plagiarism is tracked separately: every PDF is ₹175 revenue, ₹150 operating cost and ₹25 profit. The 2.36% payment handling charge is collected separately and recorded as its matching gateway cost. Points discounts are included in printing operational cost. Ramya receives 65% only of printing profit; Bharat receives the other 35% plus all other business profit.</p>
+                    <h3>Plagiarism ledger</h3><div className="ledger-summary"><div><small>Plagiarism revenue</small><strong>{inr.format((ledger.totals.plagiarismRevenuePaise ?? 0) / 100)}</strong></div><div><small>Plagiarism operating cost</small><strong>{inr.format((ledger.totals.plagiarismOperationalCostPaise ?? 0) / 100)}</strong></div><div><small>Plagiarism profit</small><strong>{inr.format((ledger.totals.plagiarismProfitPaise ?? 0) / 100)}</strong></div></div>
                     <h3>Franchise ledger</h3><div className="ledger-summary"><div><small>PrintBee franchise revenue (12.5%)</small><strong>{inr.format((ledger.franchiseAdminRevenuePaise ?? 0) / 100)}</strong></div></div><div className="location-table"><div className="table-head"><span>Franchise</span><span>Orders</span><span>Paid revenue</span><span>Franchise share (87.5%)</span></div>{ledger.franchises?.map((store: any) => <div key={store.store_id}><span>{store.name}</span><strong>{store.orders}</strong><strong>{inr.format(store.revenue_paise / 100)}</strong><strong>{inr.format(store.franchise_revenue_paise / 100)}</strong></div>) || <p>No franchise-paid orders yet.</p>}</div>
                     <h3>Daily financial breakdown</h3>
                     <LedgerFinancialTable rows={ledger.daily} total={ledger.totals} />
@@ -2356,7 +2366,7 @@ export default function PrintBeeApp({ viewer, appwriteConfigured }: { viewer: Vi
                 <label className="checkout-field">Landmark (optional)<input value={deliveryLandmark} onChange={(e) => setDeliveryLandmark(e.target.value)} placeholder="Near a shop, gate or landmark" /></label></>}
                 {incampusDelivery && <div className="binding-fields"><strong>In-campus delivery details</strong><p><b>Please enter class room number and building name for university classrooms, enter only building name for hostels.</b></p><div className="service-option-grid" role="radiogroup" aria-label="In-campus destination type"><button type="button" role="radio" aria-checked={incampusType === "CLASSROOM"} className={incampusType === "CLASSROOM" ? "selected" : ""} onClick={() => setIncampusType("CLASSROOM")}><span><strong>University classroom</strong><small>Building name and classroom number required.</small></span></button><button type="button" role="radio" aria-checked={incampusType === "HOSTEL"} className={incampusType === "HOSTEL" ? "selected" : ""} onClick={() => setIncampusType("HOSTEL")}><span><strong>Hostel</strong><small>Building name required.</small></span></button></div><label>Building name<input value={campusBuilding} onChange={(e) => setCampusBuilding(e.target.value)} placeholder="Example: Academic Block A or Krishna Hostel" /></label>{incampusType === "CLASSROOM" && <label>Classroom number<input value={classroomNumber} onChange={(e) => setClassroomNumber(e.target.value)} placeholder="Example: A-204" /></label>}</div>}
                 {packagingEnabled && <button type="button" className={`packaging-choice ${needsPackaging ? "selected" : ""}`} aria-pressed={needsPackaging} onClick={() => setNeedsPackaging((current) => !current)}><span><strong>Need packaging for this order?</strong><small>Add protective packaging for {inr.format(packagingFee)}.</small></span><b>{needsPackaging ? "✓ Added" : "Add"}</b></button>}
-                <div className="fee-breakdown"><div><span>Printing subtotal</span><strong>{inr.format(cartPrintingTotal)}</strong></div>{cartServiceCharges > 0 && <div className="binding-charge-row"><span>Service charges</span><strong>{inr.format(cartServiceCharges)}</strong></div>}{cartAddonCharges > 0 && <div className="binding-charge-row"><span>Add-ons</span><strong>{inr.format(cartAddonCharges)}</strong></div>}<div><span>Delivery fee</span><strong>{inr.format(checkoutDeliveryFee)}</strong></div>{incampusDelivery && <div className="binding-charge-row"><span>In-campus delivery</span><strong>{inr.format(checkoutIncampusFee)}</strong></div>}<div><span>Platform fee</span><strong>{inr.format(checkoutPlatformFee)}</strong></div>{needsPackaging && packagingEnabled && <div className="packaging-charge-row"><span>Packaging fee</span><strong>{inr.format(checkoutPackagingFee)}</strong></div>}{surgeEnabled && <div className="surge-charge-row"><span>High-demand surge charge</span><strong>{inr.format(checkoutSurgeFee)}</strong></div>}{lateNightEnabled && <div className="surge-charge-row"><span>Late-night delivery fee</span><strong>{inr.format(checkoutLateNightFee)}</strong></div>}{gatewayEnabled && checkoutGatewayFee > 0 && <div><span>Payment handling charges</span><strong>{inr.format(checkoutGatewayFee)}</strong></div>}{pointsDiscount > 0 && <div className="points-discount-row"><span>Points discount ({redeemablePoints} points)</span><strong>−{inr.format(pointsDiscount)}</strong></div>}</div>
+                <div className="fee-breakdown"><div><span>{isPlagiarismOnly ? "Plagiarism subtotal" : "Printing subtotal"}</span><strong>{inr.format(isPlagiarismOnly ? cartTotal : cartPrintingTotal)}</strong></div>{!isPlagiarismOnly && cartServiceCharges > 0 && <div className="binding-charge-row"><span>Service charges</span><strong>{inr.format(cartServiceCharges)}</strong></div>}{cartAddonCharges > 0 && <div className="binding-charge-row"><span>Add-ons</span><strong>{inr.format(cartAddonCharges)}</strong></div>}{!isPlagiarismOnly && <><div><span>Delivery fee</span><strong>{inr.format(checkoutDeliveryFee)}</strong></div>{incampusDelivery && <div className="binding-charge-row"><span>In-campus delivery</span><strong>{inr.format(checkoutIncampusFee)}</strong></div>}<div><span>Platform fee</span><strong>{inr.format(checkoutPlatformFee)}</strong></div>{needsPackaging && packagingEnabled && <div className="packaging-charge-row"><span>Packaging fee</span><strong>{inr.format(checkoutPackagingFee)}</strong></div>}{surgeEnabled && <div className="surge-charge-row"><span>High-demand surge charge</span><strong>{inr.format(checkoutSurgeFee)}</strong></div>}{lateNightEnabled && <div className="surge-charge-row"><span>Late-night delivery fee</span><strong>{inr.format(checkoutLateNightFee)}</strong></div>}</>}{checkoutGatewayFee > 0 && <div><span>{isPlagiarismOnly ? "Payment handling charges (2.36%)" : "Payment handling charges"}</span><strong>{inr.format(checkoutGatewayFee)}</strong></div>}{pointsDiscount > 0 && <div className="points-discount-row"><span>Points discount ({redeemablePoints} points)</span><strong>−{inr.format(pointsDiscount)}</strong></div>}</div>
                 <button type="button" className={`wallet-balance-button ${usePoints ? "selected" : ""}`} disabled={redeemablePoints < 1} onClick={() => setUsePoints((current) => !current)}><span className="wallet-icon">₹</span><span><strong>{usePoints ? "Wallet applied" : "Use wallet balance"}</strong><small>{pointsBalance} points · worth {inr.format(pointsBalance / 15)} · every point is redeemable</small></span><b>{usePoints ? "✓" : "Use"}</b></button>
                 <div className="checkout-total"><span>Estimated total</span><AnimatedPrice value={Math.max(0, checkoutBeforePoints - pointsDiscount)} /></div>
                 <div className="points-earned-preview"><span>◉</span><div><strong>You’ll earn {Math.floor(Math.max(0, checkoutBeforePoints - pointsDiscount) / 10)} wallet points</strong><small>Credited after this order is successfully delivered.</small></div></div>
