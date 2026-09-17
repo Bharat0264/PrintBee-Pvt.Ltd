@@ -1090,11 +1090,12 @@ export default function PrintBeeApp({ viewer, appwriteConfigured }: { viewer: Vi
         name: "PrintBee",
         description: `Payment for ${paymentOrder.orderNumber}`,
         order_id: paymentOrder.razorpayOrderId,
-        prefill: { name: customerName, email: viewer?.email, contact: mobileNumber },
-        // Safari can omit UPI from Razorpay's automatically selected methods.
-        // Declare it explicitly and place it first while retaining the gateway's
-        // normal set of enabled payment options.
-        method: { upi: true },
+        // Razorpay requires an E.164 contact for the mobile UPI Intent flow.
+        // Indian customer numbers are collected as ten digits elsewhere in this app.
+        prefill: { name: customerName, email: viewer?.email, contact: mobileNumber ? `+91${mobileNumber}` : undefined },
+        // Use Razorpay's documented display configuration to put its enabled UPI
+        // methods first. On iPhone Safari this opens the UPI Intent app flow;
+        // Razorpay shows a QR code automatically on desktop instead.
         config: {
           display: {
             blocks: {

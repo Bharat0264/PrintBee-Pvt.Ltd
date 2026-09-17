@@ -2,7 +2,7 @@
 import { useRef, useState } from "react";
 import { ActionFeedback, GlassButton } from "../../components/LiquidGlass";
 type PaymentResult = { razorpay_payment_id: string; razorpay_order_id: string; razorpay_signature: string };
-type RazorpayOptions = { key: string; amount: number; currency: string; name: string; description: string; order_id: string; method?: { upi?: boolean }; config?: Record<string, unknown>; handler: (result: PaymentResult) => Promise<void>; modal: { ondismiss: () => void } };
+type RazorpayOptions = { key: string; amount: number; currency: string; name: string; description: string; order_id: string; config?: Record<string, unknown>; handler: (result: PaymentResult) => Promise<void>; modal: { ondismiss: () => void } };
 declare global { interface Window { Razorpay?: new (options: RazorpayOptions) => { open: () => void } } }
 export default function PurchaseButton({ projectId }: { projectId: string }) {
   const [message, setMessage] = useState(""), [busy, setBusy] = useState(false);
@@ -19,7 +19,7 @@ export default function PurchaseButton({ projectId }: { projectId: string }) {
         await new Promise<void>((resolve, reject) => { script.onload = () => resolve(); script.onerror = () => reject(new Error("Checkout could not load. Please try again.")); document.head.appendChild(script); });
       }
       if (!window.Razorpay) throw new Error("Checkout is unavailable.");
-      new window.Razorpay({ key: data.keyId, amount: data.amount, currency: "INR", name: "PrintBee Projects", description: `${data.title} · ${data.projectCode}`, order_id: data.razorpayOrderId, method: { upi: true }, config: { display: { blocks: { upi: { name: "Pay via UPI", instruments: [{ method: "upi" }] } }, sequence: ["block.upi"], preferences: { show_default_blocks: true } } }, modal: { ondismiss: release }, handler: async result => {
+      new window.Razorpay({ key: data.keyId, amount: data.amount, currency: "INR", name: "PrintBee Projects", description: `${data.title} · ${data.projectCode}`, order_id: data.razorpayOrderId, config: { display: { blocks: { upi: { name: "Pay via UPI", instruments: [{ method: "upi" }] } }, sequence: ["block.upi"], preferences: { show_default_blocks: true } } }, modal: { ondismiss: release }, handler: async result => {
         try {
           const verification = await fetch("/api/projects/purchase/verify", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ orderId: data.orderId, ...result }) }), outcome = await verification.json();
           if (!verification.ok) throw new Error(outcome.error ?? "Verification failed");
