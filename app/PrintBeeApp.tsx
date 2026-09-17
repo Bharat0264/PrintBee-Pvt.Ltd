@@ -1091,6 +1091,19 @@ export default function PrintBeeApp({ viewer, appwriteConfigured }: { viewer: Vi
         description: `Payment for ${paymentOrder.orderNumber}`,
         order_id: paymentOrder.razorpayOrderId,
         prefill: { name: customerName, email: viewer?.email, contact: mobileNumber },
+        // Safari can omit UPI from Razorpay's automatically selected methods.
+        // Declare it explicitly and place it first while retaining the gateway's
+        // normal set of enabled payment options.
+        method: { upi: true },
+        config: {
+          display: {
+            blocks: {
+              upi: { name: "Pay via UPI", instruments: [{ method: "upi" }] },
+            },
+            sequence: ["block.upi"],
+            preferences: { show_default_blocks: true },
+          },
+        },
         theme: { color: "#e0ad00" },
         handler: async (result: RazorpayResult) => {
           try {
