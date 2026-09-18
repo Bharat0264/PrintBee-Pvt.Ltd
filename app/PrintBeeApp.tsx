@@ -8,6 +8,7 @@ import { ActiveOrderWidget, ActiveOrderLinks, OrderDocuments, OrderJourney, OTPC
 import { useCustomerOrders } from "./components/useCustomerOrders";
 import { formatFileSize } from "./components/order-model";
 import { CustomerMotion, customerFeedback, AnimatedPrice, StudioLauncher } from "./components/CustomerMotion";
+import { loadRazorpayCheckout } from "./components/razorpay-checkout";
 
 type PrintMode = "bw-single" | "bw-double" | "colour-single" | "colour-double";
 type Prices = Record<PrintMode, number>;
@@ -395,6 +396,9 @@ export default function PrintBeeApp({ viewer, appwriteConfigured }: { viewer: Vi
     } catch {}
   };
   useEffect(() => { trackTraffic("PAGE_VIEW"); }, []);
+  // Warm up Razorpay before the payment click. This keeps iPhone Safari from
+  // having to fetch the checkout library midway through its payment flow.
+  useEffect(() => { void loadRazorpayCheckout().catch(() => {}); }, []);
   const [customerName, setCustomerName] = useState("");
   const [mobileNumber, setMobileNumber] = useState("");
   const [deliveryAddress, setDeliveryAddress] = useState("");
@@ -1069,15 +1073,7 @@ export default function PrintBeeApp({ viewer, appwriteConfigured }: { viewer: Vi
     setOrderError("");
     setPaymentProcessing(true);
     try {
-      if (!document.querySelector('script[src="https://checkout.razorpay.com/v1/checkout.js"]')) {
-        await new Promise<void>((resolve, reject) => {
-          const script = document.createElement("script");
-          script.src = "https://checkout.razorpay.com/v1/checkout.js";
-          script.onload = () => resolve();
-          script.onerror = () => reject(new Error("Checkout failed to load"));
-          document.head.appendChild(script);
-        });
-      }
+      await loadRazorpayCheckout();
       const createResponse = await fetch("/api/payments/razorpay/create", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ orderId: order.id }) });
       const paymentOrder = await createResponse.json();
       if (!createResponse.ok) throw new Error(paymentOrder.error ?? "Payment could not be started");
