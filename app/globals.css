@@ -536,6 +536,11 @@ footer { border-top: 1px solid var(--line); padding: 28px max(24px, calc((100% -
 .checkout-total strong { font-size: 23px; }
 .checkout-modal .save-button { width: 100%; background: var(--yellow); color: var(--ink); }
 .checkout-modal .save-button:disabled { opacity: .4; cursor: not-allowed; }
+.browser-payment-backdrop { z-index: 40; }
+.browser-payment-notice { text-align: center; }
+.browser-payment-notice .admin-badge { margin-inline: auto; }
+.browser-payment-notice p { margin: 14px 0 20px; font-size: 14px; line-height: 1.55; }
+.browser-payment-dismiss { width: 100%; margin-top: 10px; border: 0; background: transparent; color: var(--muted); font: inherit; font-weight: 700; padding: 10px; cursor: pointer; }
 .cart-edit-modal { width: min(620px, 100%); }
 .cart-edit-modal .service-picker { margin-top: 22px; }
 .cart-edit-details { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 18px 0; }

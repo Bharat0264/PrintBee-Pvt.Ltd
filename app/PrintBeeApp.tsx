@@ -369,6 +369,7 @@ export default function PrintBeeApp({ viewer, appwriteConfigured }: { viewer: Vi
   const [feedbackMessage, setFeedbackMessage] = useState("");
   const [loginMode, setLoginMode] = useState<"CUSTOMER" | "PARTNER">("CUSTOMER");
   const [checkoutOpen, setCheckoutOpen] = useState(false);
+  const [safariUpiNoticeOpen, setSafariUpiNoticeOpen] = useState(false);
   const [memeQuote, setMemeQuote] = useState(GEN_Z_MEMES[0]);
   const [acceptingOrders, setAcceptingOrders] = useState(true);
   const [launchAt, setLaunchAt] = useState("2026-08-10T03:30:00.000Z");
@@ -1047,6 +1048,14 @@ export default function PrintBeeApp({ viewer, appwriteConfigured }: { viewer: Vi
 
   const placeOrder = async () => {
     if (paymentProcessing || orderSubmissionLock.current || paymentDialogLock.current) return;
+    // Razorpay's UPI app handoff is not consistently exposed by Safari. Warn
+    // before a pending order is created, so the customer can switch browsers
+    // without having to restart checkout.
+    const isSafari = /safari/i.test(navigator.userAgent) && !/(chrome|crios|fxios|edgios|android)/i.test(navigator.userAgent);
+    if (isSafari) {
+      setSafariUpiNoticeOpen(true);
+      return;
+    }
     orderSubmissionLock.current = true;
     setPaymentProcessing(true);
     setOrderError("");
@@ -2385,6 +2394,22 @@ export default function PrintBeeApp({ viewer, appwriteConfigured }: { viewer: Vi
                 <button className="save-button" aria-busy={paymentProcessing} disabled={(!isPlagiarismOnly && (!deliveryAddress.trim() || !customerCoordinates || calculatedDeliveryFee === null || (incampusDelivery && (!campusBuilding.trim() || (incampusType === "CLASSROOM" && !classroomNumber.trim()))))) || !customerName.trim() || mobileNumber.length !== 10 || paymentProcessing} onClick={placeOrder}>{paymentProcessing ? <LoadingAnimation label="Starting Razorpay…" /> : "Pay now"}</button>
               </>
             )}
+          </section>
+        </div>
+      )}</GlassPresence>
+
+      <GlassPresence>{safariUpiNoticeOpen && (
+        <div className="modal-backdrop browser-payment-backdrop" role="presentation" onMouseDown={() => setSafariUpiNoticeOpen(false)}>
+          <section className="checkout-modal browser-payment-notice" role="dialog" aria-modal="true" aria-labelledby="safari-upi-title" onMouseDown={(event) => event.stopPropagation()}>
+            <button className="close" onClick={() => setSafariUpiNoticeOpen(false)} aria-label="Close payment browser notice">Ã—</button>
+            <div className="admin-badge">UPI PAYMENT NOTICE</div>
+            <h2 id="safari-upi-title">Use Chrome for UPI payment</h2>
+            <p>UPI apps and QR payment may not appear in Safari. Open this same page in Google Chrome to complete your UPI payment securely.</p>
+            <button className="save-button" onClick={() => {
+              const url = window.location.href;
+              window.location.href = `googlechrome://navigate?url=${encodeURIComponent(url)}`;
+            }}>Continue in Chrome</button>
+            <button className="browser-payment-dismiss" onClick={() => setSafariUpiNoticeOpen(false)}>Stay in Safari</button>
           </section>
         </div>
       )}</GlassPresence>
