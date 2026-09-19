@@ -22,6 +22,12 @@ body { background:#080c12; }
 .hero-printer { position:absolute; width:48%; right:-25px; top:55px; pointer-events:none; --journey:.35; }.hero-intro>.bee-scene { display:none; }.hero-printer .scene-caption { font-size:6px; }.hero-printer .printer-stage { scale:.95; }.hero-printer .note-two { display:none; }
 .printbee-experience .gen-z-meme { background:#ffffff05; border-color:#ffffff16; color:#bfc5cf; }.printbee-experience .payment-home-note button { background:#202a36; color:#ded9cb; border:1px solid #ffffff20; }
 .printbee-experience .primary-cta,.printbee-experience .cart-summary>button { background:linear-gradient(110deg,#ffe396,#f4be42); border:1px solid #ffe3a1; color:#151611; border-radius:12px; box-shadow:0 10px 35px #dca22f20; }
+.printbee-experience .batch-mixed-pages { padding:12px; border:1px solid #ffffff1c; border-radius:14px; background:#111925; }
+.printbee-experience .batch-mixed-pages > button { background:#182231; border-color:#ffffff2a; color:#f4efe4; }
+.printbee-experience .batch-mixed-pages > button.selected { background:#302916; border-color:#f0c65d; box-shadow:0 0 0 2px #f0c65d20; }
+.printbee-experience .batch-mixed-pages label { color:#d9cda9; }
+.printbee-experience .batch-mixed-pages input { background:#0b121c; border-color:#b9903d80; color:#fff8e8; }
+.printbee-experience .batch-mixed-pages input::placeholder { color:#b9c2cd; }
 .printbee-experience .studio-launch { color:#abb7bf; }
 .hero-copy>.eyebrow { display:none; }
 .printbee-experience .projects-hero-cta { justify-self:start; background:transparent; color:#f1ddb0; border:1px solid #dfbc643c; box-shadow:none; }
