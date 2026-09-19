@@ -39,6 +39,7 @@ type LedgerValues = {
   gatewayCollectedPaise: number;
   surgeCollectedPaise: number;
   lateNightCollectedPaise: number;
+  lateNightPartnerCostPaise: number;
   pointsDiscountPaise: number;
   riderCostPaise: number;
   projectPlatformRevenuePaise: number;
@@ -48,7 +49,7 @@ type LedgerValues = {
 };
 
 function emptyValues(): LedgerValues {
-  return { orders: 0, bwPages: 0, bwRevenuePaise: 0, bwCostPaise: 0, colourPages: 0, colourRevenuePaise: 0, colourCostPaise: 0, plagiarismRevenuePaise: 0, plagiarismOperationalCostPaise: 0, addonRevenuePaise: 0, packagingOrders: 0, amountCollectedPaise: 0, printingCollectedPaise: 0, deliveryCollectedPaise: 0, incampusDeliveryCollectedPaise: 0, platformCollectedPaise: 0, packagingCollectedPaise: 0, gatewayCollectedPaise: 0, surgeCollectedPaise: 0, lateNightCollectedPaise: 0, pointsDiscountPaise: 0, riderCostPaise: 0, projectPlatformRevenuePaise: 0, otherServiceRevenuePaise: 0, otherServiceOperatingCostPaise: 0, otherServiceCount: 0 };
+  return { orders: 0, bwPages: 0, bwRevenuePaise: 0, bwCostPaise: 0, colourPages: 0, colourRevenuePaise: 0, colourCostPaise: 0, plagiarismRevenuePaise: 0, plagiarismOperationalCostPaise: 0, addonRevenuePaise: 0, packagingOrders: 0, amountCollectedPaise: 0, printingCollectedPaise: 0, deliveryCollectedPaise: 0, incampusDeliveryCollectedPaise: 0, platformCollectedPaise: 0, packagingCollectedPaise: 0, gatewayCollectedPaise: 0, surgeCollectedPaise: 0, lateNightCollectedPaise: 0, lateNightPartnerCostPaise: 0, pointsDiscountPaise: 0, riderCostPaise: 0, projectPlatformRevenuePaise: 0, otherServiceRevenuePaise: 0, otherServiceOperatingCostPaise: 0, otherServiceCount: 0 };
 }
 
 function addItem(values: LedgerValues, item: any) {
@@ -98,7 +99,7 @@ function addItem(values: LedgerValues, item: any) {
 function finish(values: LedgerValues) {
   const bwProfitPaise = values.bwRevenuePaise - values.bwCostPaise;
   const colourProfitPaise = values.colourRevenuePaise - values.colourCostPaise;
-  const printingRevenuePaise = values.bwRevenuePaise + values.colourRevenuePaise;
+  const printingRevenuePaise = Math.max(0, values.printingCollectedPaise - values.plagiarismRevenuePaise - values.otherServiceRevenuePaise - values.addonRevenuePaise);
   const plagiarismProfitPaise = values.plagiarismRevenuePaise - values.plagiarismOperationalCostPaise;
   const ramyaOtherServiceProfitPaise = values.otherServiceRevenuePaise - values.otherServiceOperatingCostPaise;
   // Keep the established service-revenue calculation intact; ₹25 per paid
@@ -111,8 +112,8 @@ function finish(values: LedgerValues) {
   const deliveryProfitPaise = values.deliveryCollectedPaise - (values.riderCostPaise - values.incampusDeliveryCollectedPaise);
   const packagingProfitPaise = Math.min(values.packagingCollectedPaise, values.packagingOrders * 170);
   const packagingCostPaise = values.packagingCollectedPaise - packagingProfitPaise;
-  const operationalCostPaise = printingOperationalCostPaise + values.plagiarismOperationalCostPaise + values.otherServiceOperatingCostPaise + values.riderCostPaise + packagingCostPaise + values.gatewayCollectedPaise;
-  const netProfitPaise = values.amountCollectedPaise - operationalCostPaise;
+  const operationalCostPaise = printingOperationalCostPaise + values.plagiarismOperationalCostPaise + values.otherServiceOperatingCostPaise + values.riderCostPaise + values.lateNightPartnerCostPaise + packagingCostPaise + values.gatewayCollectedPaise;
+  const netProfitPaise = values.amountCollectedPaise + values.projectPlatformRevenuePaise - operationalCostPaise;
   // Ramya shares only the profit earned from printing. All other revenue belongs to Bharat.
   const ramyaPrintingProfitPaise = Math.round(printingProfitPaise * 0.65);
   const bharatPrintingProfitPaise = printingProfitPaise - ramyaPrintingProfitPaise;
@@ -120,10 +121,10 @@ function finish(values: LedgerValues) {
   // Allocate every non-printing result from reconciled net profit. This keeps
   // the Bharat/Ramya share tally correct when a points discount is recorded
   // as a printing operating cost and the collected total is already net of it.
-  const bharatOtherProfitPaise = netProfitPaise - printingProfitPaise - ramyaOtherServiceProfitPaise + values.projectPlatformRevenuePaise;
+  const bharatOtherProfitPaise = netProfitPaise - printingProfitPaise - ramyaOtherServiceProfitPaise;
   const bharatTotalProfitPaise = bharatPrintingProfitPaise + bharatOtherProfitPaise;
   const ramyaTotalProfitPaise = ramyaPrintingProfitPaise + ramyaOtherServiceProfitPaise;
-  return { ...values, bwProfitPaise, colourProfitPaise, printingRevenuePaise, plagiarismProfitPaise, serviceRevenuePaise, ramyaOtherServiceProfitPaise, printingOperationalCostPaise, printingProfitPaise, addonProfitPaise: values.addonRevenuePaise, deliveryProfitPaise, packagingCostPaise, packagingProfitPaise, operationalCostPaise, netProfitPaise, bharatPrintingProfitPaise, bharatOtherProfitPaise, ramyaPrintingProfitPaise, bharatTotalProfitPaise, ramyaTotalProfitPaise, shareTallyPaise: bharatTotalProfitPaise + ramyaTotalProfitPaise };
+  return { ...values, bwProfitPaise, colourProfitPaise, printingRevenuePaise, plagiarismProfitPaise, serviceRevenuePaise, otherServiceProfitPaise: ramyaOtherServiceProfitPaise, printingOperationalCostPaise, printingProfitPaise, addonProfitPaise: values.addonRevenuePaise, deliveryProfitPaise, lateNightOwnerProfitPaise: values.lateNightCollectedPaise - values.lateNightPartnerCostPaise, packagingCostPaise, packagingProfitPaise, operationalCostPaise, netProfitPaise, ownerPrintingProfitPaise: bharatPrintingProfitPaise, ownerOtherProfitPaise: bharatOtherProfitPaise, operatorPrintingProfitPaise: ramyaPrintingProfitPaise, ownerTotalProfitPaise: bharatTotalProfitPaise, operatorTotalProfitPaise: ramyaTotalProfitPaise, shareTallyPaise: bharatTotalProfitPaise + ramyaTotalProfitPaise };
 }
 
 function addValues(target: LedgerValues, source: LedgerValues) {
@@ -168,6 +169,7 @@ export async function GET() {
     values.gatewayCollectedPaise = Number(order.payment_gateway_fee_paise) || 0;
     values.surgeCollectedPaise = Number(order.surge_fee_paise) || 0;
     values.lateNightCollectedPaise = Number(order.late_night_fee_paise) || 0;
+    values.lateNightPartnerCostPaise = Math.floor(values.lateNightCollectedPaise * 0.6);
     values.pointsDiscountPaise = Number(order.points_discount_paise) || 0;
     values.riderCostPaise = Math.floor(values.deliveryCollectedPaise * 0.75) + values.incampusDeliveryCollectedPaise;
     let items: any[] = [];
