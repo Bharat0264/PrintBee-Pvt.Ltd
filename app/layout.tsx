@@ -5,6 +5,7 @@ import "./order-motion.css";
 import "./liquid-glass.css";
 import "./cinematic.css";
 import CinematicMotion from "./components/cinematic/CinematicMotion";
+import TouchFeedback from "./components/cinematic/TouchFeedback";
 import { FloatingBackground, GlassInteractionSystem, PageTransition } from "./components/LiquidGlass";
 
 
@@ -41,6 +42,7 @@ export default function RootLayout({
         <FloatingBackground />
         <GlassInteractionSystem />
         <CinematicMotion />
+        <TouchFeedback />
         <PageTransition>{children}</PageTransition>
       </body>
     </html>
