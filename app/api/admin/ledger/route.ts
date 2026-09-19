@@ -99,7 +99,10 @@ function addItem(values: LedgerValues, item: any) {
 function finish(values: LedgerValues) {
   const bwProfitPaise = values.bwRevenuePaise - values.bwCostPaise;
   const colourProfitPaise = values.colourRevenuePaise - values.colourCostPaise;
-  const printingRevenuePaise = Math.max(0, values.printingCollectedPaise - values.plagiarismRevenuePaise - values.otherServiceRevenuePaise - values.addonRevenuePaise);
+  // Printing revenue is the uploaded page count × the B&W/colour single- or
+  // double-sided price stored with each order. Binding and other services are
+  // deliberately excluded and tracked in their own ledger columns.
+  const printingRevenuePaise = values.bwRevenuePaise + values.colourRevenuePaise;
   const plagiarismProfitPaise = values.plagiarismRevenuePaise - values.plagiarismOperationalCostPaise;
   const ramyaOtherServiceProfitPaise = values.otherServiceRevenuePaise - values.otherServiceOperatingCostPaise;
   // Keep the established service-revenue calculation intact; ₹25 per paid
