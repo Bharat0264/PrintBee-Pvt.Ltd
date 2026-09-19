@@ -3,6 +3,7 @@ import { readFile } from "node:fs/promises";
 import test from "node:test";
 
 const appSource = await readFile(new URL("../app/PrintBeeApp.tsx", import.meta.url), "utf8");
+const checkoutSource = await readFile(new URL("../app/components/razorpay-checkout.ts", import.meta.url), "utf8");
 const orderSource = await readFile(new URL("../app/api/orders/route.ts", import.meta.url), "utf8");
 const createSource = await readFile(new URL("../app/api/payments/razorpay/create/route.ts", import.meta.url), "utf8");
 const verifySource = await readFile(new URL("../app/api/payments/razorpay/verify/route.ts", import.meta.url), "utf8");
@@ -12,7 +13,8 @@ test("checkout creates a server-side Razorpay order", () => {
   assert.match(orderSource, /'PAYMENT_PENDING', 'PENDING'/);
   assert.match(createSource, /api\.razorpay\.com\/v1\/orders/);
   assert.match(createSource, /customer_email=\?/);
-  assert.match(appSource, /checkout\.razorpay\.com\/v1\/checkout\.js/);
+  assert.match(checkoutSource, /checkout\.razorpay\.com\/v1\/checkout\.js/);
+  assert.match(appSource, /await loadRazorpayCheckout\(\)/);
   assert.doesNotMatch(orderSource, /orderNumber, deliveryCode, locationName/);
 });
 

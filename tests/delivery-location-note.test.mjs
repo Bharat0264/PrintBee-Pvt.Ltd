@@ -4,8 +4,8 @@ import test from "node:test";
 
 const appSource = await readFile(new URL("../app/PrintBeeApp.tsx", import.meta.url), "utf8");
 
-test("shows the exact delivery-location guidance on the start page and at checkout", () => {
-  const note = "Select the nearest delivery location and share your exact delivery location after a delivery partner is assigned.";
-  assert.equal(appSource.split(note).length - 1, 2);
-  assert.equal(appSource.split(`<strong>${note}</strong>`).length - 1, 2);
+test("checkout asks for the current location and a confirmed delivery address", () => {
+  assert.match(appSource, /Share your current location, then confirm the delivery address below/);
+  assert.match(appSource, /Use My Current Location/);
+  assert.match(appSource, /Building \/ house number and delivery address/);
 });

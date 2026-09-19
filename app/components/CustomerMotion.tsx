@@ -29,7 +29,7 @@ export function CustomerMotion({ hidden = false }: { hidden?: boolean }) {
       }
       if (kind === 'cart-added') {
         const source = document.querySelector('.order-card');
-        const destination = document.querySelector('.mobile-dock a[href="#cart"]') || document.querySelector('#cart');
+        const destination = [...document.querySelectorAll('.mobile-dock a[href="#cart"],.topbar a[href="#cart"],#cart')].find(el => { const rect = el.getBoundingClientRect(); return rect.width > 0 && rect.top >= 0 && rect.top < innerHeight; });
         if (!source || !destination) return;
         const from = source.getBoundingClientRect(), to = destination.getBoundingClientRect();
         if (to.top < 0 || to.top > innerHeight) return;
@@ -39,7 +39,8 @@ export function CustomerMotion({ hidden = false }: { hidden?: boolean }) {
         const y = Math.min(innerHeight - 100, Math.max(60, from.top + 80));
         Object.assign(paper.style, { position:'fixed', left:`${x}px`, top:`${y}px`, zIndex:'50', pointerEvents:'none', fontSize:'28px', color:'#386841' });
         document.body.append(paper);
-        const animation = paper.animate([{ transform:'translate(0,0) scale(1)', opacity:1 }, { transform:'translate(14px,-28px) scale(.75)', opacity:0 }], { duration:motion.normal, easing:motion.easing });
+        const dx = to.left + to.width / 2 - x, dy = to.top + Math.min(to.height / 2, 30) - y;
+        const animation = paper.animate([{ transform:'translate(0,0) scale(1)', opacity:1 }, { transform:`translate(${dx * .45}px,${Math.min(-65, dy - 70)}px) rotate(-12deg) scale(.8)`, opacity:1, offset:.45 }, { transform:`translate(${dx}px,${dy}px) rotate(8deg) scale(.15)`, opacity:0 }], { duration:650, easing:motion.easing });
         animations.add(animation); animation.onfinish = animation.oncancel = () => { paper.remove(); animations.delete(animation); };
       }
     };

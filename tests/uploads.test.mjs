@@ -6,11 +6,11 @@ const appSource = await readFile(new URL("../app/PrintBeeApp.tsx", import.meta.u
 const uploadSource = await readFile(new URL("../app/api/uploads/route.ts", import.meta.url), "utf8");
 const chunkedSource = await readFile(new URL("../app/api/uploads/chunked/route.ts", import.meta.url), "utf8");
 
-test("accepts only PDF, JPG/JPEG, PNG and HEIC up to 50 MB", () => {
+test("accepts only PDF, JPG/JPEG, PNG, WEBP and HEIC up to 50 MB", () => {
   assert.match(appSource, /50 \* 1024 \* 1024/);
-  assert.match(appSource, /accept="\.pdf,\.jpg,\.jpeg,\.png,\.heic/);
+  assert.match(appSource, /\.pdf,\.jpg,\.jpeg,\.png,\.webp,\.heic/);
   assert.match(uploadSource, /pdf\|heic\|jpe\?g\|png/);
-  assert.doesNotMatch(uploadSource, /webp|gif|bmp|tiff/);
+  assert.doesNotMatch(uploadSource, /gif|bmp|tiff/);
   assert.doesNotMatch(appSource, /\.docx/);
   assert.match(uploadSource, /50 \* 1024 \* 1024/);
 });
@@ -21,7 +21,7 @@ test("accepts PDF files even when the browser supplies a generic MIME type", () 
 });
 
 test("continues to reject non-printable file types", () => {
-  assert.match(uploadSource, /Only PDF, JPG\/JPEG, PNG and HEIC files are accepted/);
+  assert.match(uploadSource, /Only PDF, JPG\/JPEG, PNG, WEBP and HEIC files are accepted/);
 });
 
 test("optimizes images and splits larger files below the request-layer threshold", () => {
@@ -48,5 +48,5 @@ test("accepts the selected images but rejects all other extensions", () => {
   assert.match(chunkedSource, /heic\|jpe\?g\|png/);
   assert.doesNotMatch(uploadSource, /docx|pptx|xlsx/);
   assert.doesNotMatch(chunkedSource, /docx|pptx|xlsx/);
-  assert.doesNotMatch(appSource, /accept=[^\n]*(docx|webp|gif|bmp|tiff)/);
+  assert.doesNotMatch(appSource, /accept=[^\n]*(docx|gif|bmp|tiff)/);
 });

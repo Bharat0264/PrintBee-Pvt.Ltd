@@ -3,6 +3,8 @@ import "./globals.css";
 import "./experience.css";
 import "./order-motion.css";
 import "./liquid-glass.css";
+import "./cinematic.css";
+import CinematicMotion from "./components/cinematic/CinematicMotion";
 import { FloatingBackground, GlassInteractionSystem, PageTransition } from "./components/LiquidGlass";
 
 
@@ -38,6 +40,7 @@ export default function RootLayout({
       >
         <FloatingBackground />
         <GlassInteractionSystem />
+        <CinematicMotion />
         <PageTransition>{children}</PageTransition>
       </body>
     </html>

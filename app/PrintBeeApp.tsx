@@ -9,6 +9,7 @@ import { useCustomerOrders } from "./components/useCustomerOrders";
 import { formatFileSize } from "./components/order-model";
 import { CustomerMotion, customerFeedback, AnimatedPrice, StudioLauncher } from "./components/CustomerMotion";
 import { loadRazorpayCheckout } from "./components/razorpay-checkout";
+import { PrintJourney, PrinterScene, ProjectPortals, PaymentCelebration } from "./components/cinematic/PrintJourney";
 
 type PrintMode = "bw-single" | "bw-double" | "colour-single" | "colour-double";
 type Prices = Record<PrintMode, number>;
@@ -1844,6 +1845,7 @@ export default function PrintBeeApp({ viewer, appwriteConfigured }: { viewer: Vi
           <a href="#how">How it works</a>
           <a href="#points">Earn points</a>
           <a href="#pricing">Pricing</a>
+          <a href="#cart" aria-label={`Cart, ${cart.length} items`}>Cart ({cart.length})</a>
           {viewer && !viewer.isAdmin && <button className="store-switch-button" onClick={() => { setFranchiseApplyMessage(""); setFranchiseApplyOpen(true); }}>Apply for a franchise</button>}
           {selectedStoreId && !viewer?.isAdmin && <button className="store-switch-button" onClick={() => { window.localStorage.removeItem("printbee-selected-store"); setSelectedStoreId(null); }}>Change store</button>}
           {viewer?.isAdmin && <button className="admin-link" onClick={() => openAdminDashboard(1)}>Admin dashboard</button>}
@@ -1863,6 +1865,7 @@ export default function PrintBeeApp({ viewer, appwriteConfigured }: { viewer: Vi
           <div className="hero-intro"><div className="eyebrow">YOUR CAMPUS PRINT COMPANION</div><h1>Upload. Print.<br /><em>Delivered.</em></h1><p>Notes, assignments, big ideas. Fresh A4 prints, delivered to your door.</p><a className="primary-cta" href="#upload">Upload Files <span aria-hidden="true">↑</span></a><BeeMascot /><StudioLauncher /></div>
           <div className="eyebrow"><span>●</span> A4 printing, delivered locally</div>
           <a className="projects-hero-cta" href="/projects">Explore Projects <span aria-hidden="true">→</span></a>
+          <div className="hero-printer"><PrinterScene /></div>
           <div className="trust-row">
             <span>✓ Secure files</span><span>✓ Clear pricing</span><span>✓ Doorstep delivery</span>
           </div>
@@ -1876,6 +1879,7 @@ export default function PrintBeeApp({ viewer, appwriteConfigured }: { viewer: Vi
           </div>
         </div>
 
+        <PrintJourney />
         <section className="order-card" id="upload" aria-label="Create print order" tabIndex={-1}>
           {acceptingOrders ? <>
           <div className="card-heading">
@@ -2078,6 +2082,7 @@ export default function PrintBeeApp({ viewer, appwriteConfigured }: { viewer: Vi
         <div><span>PRINTBEE PROJECTS</span><h2>Have a project idea? 🚀</h2><p>Buy a project, sell something you built, or get your idea developed.</p></div>
         <a href="/projects">Explore Projects →</a>
       </section>
+      <ProjectPortals />
       <footer>
         <div className="footer-brand"><img src="/printbee-logo.png" width={86} height={86} alt="" /><div><strong>Print<span>Bee</span></strong><p>Upload. Print. Delivered.</p></div></div>
         <nav className="footer-policy-links" aria-label="Policies"><a href="/terms">Terms</a><a href="/privacy-policy">Privacy</a><a href="/shipping-policy">Shipping</a><a href="/cancellation-refunds">Cancellation &amp; Refunds</a><a href="/contact">Contact</a></nav>
@@ -2360,7 +2365,7 @@ export default function PrintBeeApp({ viewer, appwriteConfigured }: { viewer: Vi
           <section className="checkout-modal" role="dialog" aria-modal="true" aria-labelledby="checkout-title" onMouseDown={(e) => e.stopPropagation()}>
             <button className="close" onClick={() => setCheckoutOpen(false)} aria-label="Close">×</button>
             {orderResult ? (
-              <div className="order-success"><CheckoutProgress step={orderResult.paid ? 3 : 2} />{orderResult.paid && <SuccessAnimation />}
+              <div className="order-success"><CheckoutProgress step={orderResult.paid ? 3 : 2} />{orderResult.paid && <PaymentCelebration />}
                 {orderResult.paid && <><BeeMascot celebrate /><p>Amount paid <strong>{inr.format(orderResult.totalPaise / 100)}</strong></p><button className="primary-cta" onClick={() => { setCheckoutOpen(false); void openMyOrders(); }}>Track Order →</button></>}
                 <span>{orderResult.paid ? "✓" : "₹"}</span><h2>{orderResult.paid ? "Order placed" : "Complete payment"}</h2>
                 <p>{orderResult.paid ? <>Order <strong>{orderResult.orderNumber}</strong> · {orderResult.locationName}</> : <>Your order number will be created after successful payment · {orderResult.locationName}</>}</p>
