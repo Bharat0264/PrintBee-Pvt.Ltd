@@ -1047,13 +1047,13 @@ export default function PrintBeeApp({ viewer, appwriteConfigured }: { viewer: Vi
     }, () => setAdminMessage("Location permission is required to set the store location."), { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 });
   };
 
-  const placeOrder = async () => {
+  const placeOrder = async (skipSafariNotice = false) => {
     if (paymentProcessing || orderSubmissionLock.current || paymentDialogLock.current) return;
     // Razorpay's UPI app handoff is not consistently exposed by Safari. Warn
     // before a pending order is created, so the customer can switch browsers
     // without having to restart checkout.
     const isSafari = /safari/i.test(navigator.userAgent) && !/(chrome|crios|fxios|edgios|android)/i.test(navigator.userAgent);
-    if (isSafari) {
+    if (isSafari && !skipSafariNotice) {
       setSafariUpiNoticeOpen(true);
       return;
     }
@@ -2409,13 +2409,12 @@ export default function PrintBeeApp({ viewer, appwriteConfigured }: { viewer: Vi
           <section className="checkout-modal browser-payment-notice" role="dialog" aria-modal="true" aria-labelledby="safari-upi-title" onMouseDown={(event) => event.stopPropagation()}>
             <button className="close" onClick={() => setSafariUpiNoticeOpen(false)} aria-label="Close payment browser notice">Ã—</button>
             <div className="admin-badge">UPI PAYMENT NOTICE</div>
-            <h2 id="safari-upi-title">Use Chrome for UPI payment</h2>
-            <p>UPI apps and QR payment may not appear in Safari. Open this same page in Google Chrome to complete your UPI payment securely.</p>
+            <h2 id="safari-upi-title">UPI options can be limited in Safari</h2>
+            <p>Sometimes UPI options do not display in Safari. For the best UPI experience, open the PrintBee website in Chrome. Your signed-in cart is saved; after opening Chrome, sign in again, enter your name and required details, then pay.</p>
             <button className="save-button" onClick={() => {
-              const url = window.location.href;
-              window.location.href = `googlechrome://navigate?url=${encodeURIComponent(url)}`;
-            }}>Continue in Chrome</button>
-            <button className="browser-payment-dismiss" onClick={() => setSafariUpiNoticeOpen(false)}>Stay in Safari</button>
+              window.location.href = `googlechrome://navigate?url=${encodeURIComponent("https://www.printbee.co.in")}`;
+            }}>Open in Chrome</button>
+            <button className="browser-payment-dismiss" onClick={() => { setSafariUpiNoticeOpen(false); void placeOrder(true); }}>Continue in Safari</button>
           </section>
         </div>
       )}</GlassPresence>
