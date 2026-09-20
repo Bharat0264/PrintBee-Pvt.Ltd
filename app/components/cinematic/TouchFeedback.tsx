@@ -11,7 +11,7 @@ export default function TouchFeedback() {
   const lastTouch = useRef(0);
 
   useEffect(() => {
-    const isMobileTouch = () => window.matchMedia("(max-width: 820px) and (pointer: coarse)").matches;
+    const isMobileTouch = () => window.matchMedia("(hover: none), (pointer: coarse)").matches;
     const playGlassTap = () => {
       const Audio = window.AudioContext || (window as typeof window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
       if (!Audio) return;
@@ -34,21 +34,27 @@ export default function TouchFeedback() {
         tone.connect(gain); shimmer.connect(gain); gain.connect(audio.destination);
         tone.start(now); shimmer.start(now); tone.stop(now + .25); shimmer.stop(now + .25);
       };
-      if (audio.state === "suspended") void audio.resume().then(emit).catch(() => undefined);
-      else emit();
+      // Start the sound in the gesture task. Chrome on iOS can drop audio when
+      // oscillator creation waits for the resume promise to settle.
+      if (audio.state !== "running") void audio.resume().catch(() => undefined);
+      emit();
     };
-    const onPointerDown = (event: PointerEvent) => {
-      const interactive = (event.target as Element).closest("button,a,[role=button],[role=radio]");
+    const reactToTouch = (target: EventTarget | null, x: number, y: number, isTouch: boolean) => {
+      const interactive = target instanceof Element ? target.closest("button,a,[role=button],[role=radio]") : null;
       if (!interactive || (interactive as HTMLButtonElement).disabled) return;
       const now = Date.now();
       if (now - lastTouch.current < 450) return;
       lastTouch.current = now;
-      setRipple({ id: now, x: event.clientX, y: event.clientY });
+      setRipple({ id: now, x, y });
       playGlassTap();
-      if (event.pointerType === "touch" && isMobileTouch() && "vibrate" in navigator) navigator.vibrate(Array.from({ length: 10 }, () => [45, 55]).flat());
+      if (isTouch && isMobileTouch() && "vibrate" in navigator) navigator.vibrate(Array.from({ length: 10 }, () => [45, 55]).flat());
     };
+    const onPointerDown = (event: PointerEvent) => reactToTouch(event.target, event.clientX, event.clientY, event.pointerType !== "mouse");
+    // Chrome on iOS can omit pointerdown for taps inside some composited cards.
+    const onTouchStart = (event: TouchEvent) => { const touch = event.changedTouches[0]; if (touch) reactToTouch(event.target, touch.clientX, touch.clientY, true); };
     document.addEventListener("pointerdown", onPointerDown, { passive: true });
-    return () => { document.removeEventListener("pointerdown", onPointerDown); context.current?.close(); };
+    document.addEventListener("touchstart", onTouchStart, { passive: true });
+    return () => { document.removeEventListener("pointerdown", onPointerDown); document.removeEventListener("touchstart", onTouchStart); context.current?.close(); };
   }, []);
 
   return ripple ? <i className="mobile-touch-ripple" aria-hidden="true" key={ripple.id} style={{ left: ripple.x, top: ripple.y }} onAnimationEnd={() => setRipple(null)} /> : null;

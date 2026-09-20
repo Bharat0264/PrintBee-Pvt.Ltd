@@ -2397,7 +2397,7 @@ export default function PrintBeeApp({ viewer, appwriteConfigured }: { viewer: Vi
                 <div className="points-earned-preview"><span>◉</span><div><strong>You’ll earn {Math.floor(Math.max(0, checkoutBeforePoints - pointsDiscount) / 10)} wallet points</strong><small>Credited after this order is successfully delivered.</small></div></div>
                 <div className="pay-on-delivery-note"><strong>Secure online payment:</strong> After creating the order, complete payment through Razorpay. Printing begins only after verified payment.</div>
                 {orderError && <p className="form-error">{orderError}</p>}
-                <button className="save-button" aria-busy={paymentProcessing} disabled={(!isPlagiarismOnly && (!deliveryAddress.trim() || !customerCoordinates || calculatedDeliveryFee === null || (incampusDelivery && (!campusBuilding.trim() || (incampusType === "CLASSROOM" && !classroomNumber.trim()))))) || !customerName.trim() || mobileNumber.length !== 10 || paymentProcessing} onClick={placeOrder}>{paymentProcessing ? <LoadingAnimation label="Starting Razorpay…" /> : "Pay now"}</button>
+                <button className="save-button" aria-busy={paymentProcessing} disabled={(!isPlagiarismOnly && (!deliveryAddress.trim() || !customerCoordinates || calculatedDeliveryFee === null || (incampusDelivery && (!campusBuilding.trim() || (incampusType === "CLASSROOM" && !classroomNumber.trim()))))) || !customerName.trim() || mobileNumber.length !== 10 || paymentProcessing} onClick={() => void placeOrder()}>{paymentProcessing ? <LoadingAnimation label="Starting Razorpay…" /> : "Pay now"}</button>
               </>
             )}
           </section>
